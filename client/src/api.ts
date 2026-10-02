@@ -33,7 +33,7 @@ export const api = {
   },
 }
 
-/** 手机拍的照片动辄 5–10MB，上传前缩到 1600px 以内 */
+/** Phone photos are often 5–10MB; shrink to within 1600px before uploading */
 export async function shrinkImage(file: File, max = 1600): Promise<Blob> {
   if (!file.type.startsWith('image/') || file.type === 'image/gif') return file
   try {

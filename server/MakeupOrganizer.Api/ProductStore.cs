@@ -3,8 +3,8 @@ using System.Text.Json;
 namespace MakeupOrganizer.Api;
 
 /// <summary>
-/// 个人用的小数据量，直接存一个 JSON 文件就够了，不需要数据库。
-/// 写入时先写临时文件再替换，避免写到一半断电把文件写坏。
+/// Personal-scale data, so a single JSON file is enough; no database needed.
+/// Writes go to a temp file first and then replace the original, so a crash mid-write can't corrupt it.
 /// </summary>
 public class ProductStore
 {
@@ -89,7 +89,7 @@ public class ProductStore
         finally { _lock.Release(); }
     }
 
-    /// <summary>某张图片是否还被任何商品引用（删商品时用来决定要不要删图）</summary>
+    /// <summary>Whether any product still references this image (used to decide whether to delete it)</summary>
     public bool IsImageReferenced(string path) =>
         _items.Any(p => p.ImagePath == path || p.SwatchImagePath == path);
 

@@ -40,7 +40,7 @@ export default function ListPage({ items, error, category, onChanged }: {
     const sorted = [...list]
     if (sort === 'hue') sorted.sort((a, b) => hueSortKey(a.swatches[0]?.hex) - hueSortKey(b.swatches[0]?.hex))
     if (sort === 'brand') sorted.sort((a, b) => a.brand.localeCompare(b.brand) || (a.shadeName ?? '').localeCompare(b.shadeName ?? ''))
-    // 'new' 后端已经按创建时间倒序
+    // 'new': the backend already returns newest first
     return sorted
   }, [items, cat, q, sort])
 

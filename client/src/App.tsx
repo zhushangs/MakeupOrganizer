@@ -4,7 +4,7 @@ import type { Product } from './types'
 import ListPage from './pages/ListPage'
 import EditPage from './pages/EditPage'
 
-/** 用 hash 做路由，手机上的“返回”手势可以正常用 */
+/** Hash-based routing so the phone's back gesture works */
 type Route =
   | { name: 'list'; category?: string }
   | { name: 'new'; mode: 'link' | 'manual'; category?: string }

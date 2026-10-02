@@ -4,7 +4,7 @@ import { hexToRgb, loadImage, sampleAt } from '../color'
 
 interface Props {
   value: string | null | undefined
-  /** fromImage = true 表示是吸管取的色（多格时父组件会自动跳到下一格） */
+  /** fromImage = true means the color came from the eyedropper (for palettes the parent advances to the next pan) */
   onChange: (hex: string, fromImage: boolean) => void
   images: { label: string; src: string }[]
   hint?: string

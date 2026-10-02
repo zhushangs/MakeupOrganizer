@@ -1,6 +1,6 @@
 namespace MakeupOrganizer.Api;
 
-/// <summary>图片都存在 data/images 下，通过 /images/{文件名} 访问。</summary>
+/// <summary>Images are stored under data/images and served at /images/{file name}.</summary>
 public class ImageService
 {
     public const long MaxBytes = 15 * 1024 * 1024;
@@ -41,7 +41,7 @@ public class ImageService
         return "/images/" + name;
     }
 
-    /// <summary>把网上的图下载到本地；失败返回 null（不抛异常，抓取流程继续）。</summary>
+    /// <summary>Download a remote image locally; returns null on failure (no exception, so scraping continues).</summary>
     public async Task<string?> DownloadAsync(string url, string? referer, CancellationToken ct = default)
     {
         try
@@ -69,7 +69,7 @@ public class ImageService
         if (string.IsNullOrEmpty(path) || !path.StartsWith("/images/")) return;
         var name = Path.GetFileName(path);
         var full = Path.Combine(_dir, name);
-        try { if (File.Exists(full)) File.Delete(full); } catch { /* 忽略 */ }
+        try { if (File.Exists(full)) File.Delete(full); } catch { /* ignore */ }
     }
 
     private static async Task CopyLimitedAsync(Stream src, Stream dst, CancellationToken ct)

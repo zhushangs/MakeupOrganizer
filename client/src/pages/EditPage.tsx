@@ -86,7 +86,7 @@ export default function EditPage({ existing, initialMode, initialCategory, onSav
     setSel(0)
   }
 
-  /** 自动取色：页面给的色值 > 色块小图 > 商品图主色 */
+  /** Auto color: color value from the page > swatch image > dominant color of the product image */
   const autoColor = async (r: { colorHex?: string | null; swatchImagePath?: string | null; imagePath?: string | null }) => {
     try {
       if (r.colorHex) return r.colorHex

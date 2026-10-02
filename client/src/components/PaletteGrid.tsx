@@ -1,6 +1,6 @@
 import type { Product } from '../types'
 
-/** 列表里的迷你眼影盘 */
+/** Mini palette grid shown in the list */
 export default function PaletteGrid({ p }: { p: Product }) {
   return (
     <div className="pgrid" style={{ gridTemplateColumns: `repeat(${p.gridCols}, 1fr)` }}>

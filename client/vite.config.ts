@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// 构建产物直接放进后端的 wwwroot，运行时只需要一个 .NET 进程
+// Build output goes straight into the backend's wwwroot, so only one .NET process is needed at runtime
 export default defineConfig({
   plugins: [react()],
   build: {

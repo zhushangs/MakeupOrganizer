@@ -42,7 +42,7 @@ export interface ScrapeResult {
 export interface Category {
   key: string
   label: string
-  /** 默认是否多格（眼影盘） */
+  /** Whether this category defaults to a multi-pan grid (eyeshadow palettes) */
   multi: boolean
   defaultRows: number
   defaultCols: number

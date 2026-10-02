@@ -6,11 +6,11 @@ using System.Text.RegularExpressions;
 namespace MakeupOrganizer.Api;
 
 /// <summary>
-/// 纯解析：输入 HTML + 页面地址，输出商品信息和图片地址（还没下载）。
-/// 按可靠程度依次尝试：
-///   1. Sephora 页面内嵌的 linkStore JSON（有当前色号、价格）
-///   2. schema.org Product 的 JSON-LD（Ulta、大部分品牌官网、百货店都有）
-///   3. og:/product: meta 标签
+/// Pure parsing: HTML + page URL in, product info and image URLs (not yet downloaded) out.
+/// Tries sources in order of reliability:
+///   1. Sephora's embedded linkStore JSON (current shade, price)
+///   2. schema.org Product JSON-LD (Ulta, most brand sites and department stores)
+///   3. og:/product: meta tags
 ///   4. &lt;title&gt;
 /// </summary>
 public static class ProductPageParser
@@ -58,13 +58,13 @@ public static class ProductPageParser
             if (m.Success) r.Name = Clean(m.Groups[1].Value);
         }
 
-        // 收尾清理
+        // Final cleanup
         r.Name = CleanTitle(r.Name, r.Channel);
         if (r.Brand is not null && r.Name is not null && r.Name.StartsWith(r.Brand + " ", StringComparison.OrdinalIgnoreCase))
             r.Name = r.Name[(r.Brand.Length + 1)..].Trim(' ', '-', '|');
         if (r.ShadeName is not null && r.Name is not null)
         {
-            // “Matte Lipstick - Ruby Woo” 这种把色号拼在名字里的，拆掉
+            // Strip the shade when it's appended to the name, e.g. "Matte Lipstick - Ruby Woo"
             foreach (var sep in new[] { " - ", " – ", " | ", ", " })
             {
                 var suffix = sep + r.ShadeName;
@@ -77,7 +77,7 @@ public static class ProductPageParser
         r.ImageUrl = Absolute(r.ImageUrl, pageUrl);
         r.SwatchImageUrl = Absolute(r.SwatchImageUrl, pageUrl);
 
-        // Sephora 的色块图有固定规律：/productimages/sku/s{skuId}+sw.jpg
+        // Sephora swatch images follow a fixed pattern: /productimages/sku/s{skuId}+sw.jpg
         if (r.SwatchImageUrl is null && pageUrl.Host.Contains("sephora", StringComparison.OrdinalIgnoreCase) && skuFromUrl is not null)
             r.SwatchImageUrl = $"https://www.sephora.com/productimages/sku/s{skuFromUrl}+sw.jpg";
 
@@ -108,7 +108,7 @@ public static class ProductPageParser
                 if (pd.TryGetProperty("brand", out var b)) r.Brand ??= BrandName(b);
             }
         }
-        catch (JsonException) { /* 页面结构变了就跳过 */ }
+        catch (JsonException) { /* Skip if the page structure changed */ }
     }
 
     // ---------------- JSON-LD ----------------
@@ -133,7 +133,7 @@ public static class ProductPageParser
             }
             if (products.Count == 0) return;
 
-            // 优先：有 offers 的 Product；如果是 ProductGroup，找和 URL 里 sku 对应的变体
+            // Prefer a Product with offers; for a ProductGroup, find the variant matching the sku in the URL
             JsonElement? group = products.FirstOrDefault(p => HasType(p, "ProductGroup")) is { ValueKind: JsonValueKind.Object } g ? g : null;
             JsonElement main = products.FirstOrDefault(p => HasType(p, "Product") && p.TryGetProperty("offers", out _));
             if (main.ValueKind != JsonValueKind.Object) main = products[0];
@@ -165,7 +165,7 @@ public static class ProductPageParser
             else
                 r.ShadeName ??= color;
 
-            // 变体名字通常是 “产品名 - 色号”
+            // Variant names are usually "Product name - Shade"
             if (r.ShadeName is null && variant is { } vv && Str(vv, "name") is { } vn && groupName is not null && vn != groupName)
             {
                 var rest = vn.StartsWith(groupName) ? vn[groupName.Length..] : vn;
@@ -357,7 +357,7 @@ public static class ProductPageParser
     private static string? CleanTitle(string? title, string? channel)
     {
         if (title is null) return null;
-        // 去掉 “ | Sephora”、“ - Ulta Beauty” 这类后缀
+        // Remove suffixes like " | Sephora" or " - Ulta Beauty"
         var parts = Regex.Split(title, @"\s+\|\s+");
         title = parts[0];
         if (channel is not null)

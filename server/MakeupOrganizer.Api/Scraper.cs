@@ -3,7 +3,7 @@ using System.Text;
 
 namespace MakeupOrganizer.Api;
 
-/// <summary>抓取商品页面 → 解析 → 把图片下载到本地。</summary>
+/// <summary>Fetch the product page → parse it → download images locally.</summary>
 public class Scraper
 {
     private const int MaxHtmlBytes = 8 * 1024 * 1024;
@@ -70,7 +70,7 @@ public class Scraper
         result.Channel = parsed.Channel ?? result.Channel;
         result.ColorHex = parsed.ColorHex;
 
-        // 两张图并行下载
+        // Download both images in parallel
         var imgTask = parsed.ImageUrl is null ? Task.FromResult<string?>(null) : _images.DownloadAsync(parsed.ImageUrl, finalUrl.ToString(), ct);
         var swTask = parsed.SwatchImageUrl is null ? Task.FromResult<string?>(null) : _images.DownloadAsync(parsed.SwatchImageUrl, finalUrl.ToString(), ct);
         result.ImagePath = await imgTask;
@@ -86,7 +86,7 @@ public class Scraper
         return result;
     }
 
-    /// <summary>手机“分享”出来的文本经常是 “商品名 https://...”，把链接挑出来。</summary>
+    /// <summary>Text shared from a phone often looks like "Product name https://..."; pull out the URL.</summary>
     private static Uri? ExtractUrl(string raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return null;

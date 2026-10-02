@@ -21,7 +21,7 @@ export function rgbToHsl([r, g, b]: RGB): [number, number, number] {
   return [h * 60, s, l]
 }
 
-/** 色相排序用：粉 → 红 → 橘 → 棕 → … ，灰黑白放最后 */
+/** Hue sort key: pink → red → orange → brown → …, grays/black/white last */
 export function hueSortKey(hex?: string | null): number {
   const rgb = hex ? hexToRgb(hex) : null
   if (!rgb) return 99999
@@ -30,7 +30,7 @@ export function hueSortKey(hex?: string | null): number {
   return ((h + 40) % 360) * 10 + (1 - l)
 }
 
-/** 深色背景上用白字，浅色背景上用深色字 */
+/** Whether to use light text on this background color */
 export function isDark(hex?: string | null) {
   const rgb = hex ? hexToRgb(hex) : null
   if (!rgb) return false
@@ -61,7 +61,7 @@ function pixels(img: HTMLImageElement, size = 80) {
   return { data: ctx.getImageData(0, 0, w, h).data, w, h }
 }
 
-/** 色块小图：取中间区域的平均色（去掉白边） */
+/** Swatch image: average color of the center region (ignoring white borders) */
 export async function swatchColor(src: string): Promise<string | null> {
   const img = await loadImage(src)
   const { data, w, h } = pixels(img, 60)
@@ -77,10 +77,10 @@ export async function swatchColor(src: string): Promise<string | null> {
 }
 
 /**
- * 商品图：找出最“像色号”的颜色。
- * 把像素按颜色分桶，跳过白背景、纯黑和透明，偏向饱和度高的桶
- * （包装多是黑/金/银，膏体颜色通常更饱和）。
- * 只是初始值，不准的话用吸管或调色盘改。
+ * Product image: find the color most likely to be the shade.
+ * Buckets pixels by color, skips white background, pure black and transparency, and favors saturated buckets
+ * (packaging is usually black/gold/silver; the product itself is usually more saturated).
+ * It's only a starting value; the user can fix it with the eyedropper or color picker.
  */
 export async function dominantColor(src: string): Promise<string | null> {
   const img = await loadImage(src)
@@ -98,7 +98,7 @@ export async function dominantColor(src: string): Promise<string | null> {
   let bestKey = -1, bestScore = 0
   for (const [k, v] of score) if (v > bestScore) { bestKey = k; bestScore = v }
   if (bestKey < 0) return null
-  // 把目标桶和相邻桶里的真实像素求平均，结果更平滑
+  // Average the real pixels in the winning bucket and its neighbors for a smoother result
   const br = bestKey >> 8, bg = (bestKey >> 4) & 15, bb = bestKey & 15
   let sr = 0, sg = 0, sb = 0, n = 0
   for (let i = 0; i < data.length; i += 4) {
@@ -111,7 +111,7 @@ export async function dominantColor(src: string): Promise<string | null> {
   return n ? toHex([sr / n, sg / n, sb / n]) : null
 }
 
-/** 在画布上取 (x,y) 周围 radius 像素的平均色 */
+/** Average color of the pixels within radius of (x, y) on the canvas */
 export function sampleAt(ctx: CanvasRenderingContext2D, x: number, y: number, radius = 2): string {
   const x0 = Math.max(0, Math.round(x - radius)), y0 = Math.max(0, Math.round(y - radius))
   const size = radius * 2 + 1

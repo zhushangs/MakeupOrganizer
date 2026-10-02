@@ -4,7 +4,7 @@ public class Swatch
 {
     /// <summary>#RRGGBB</summary>
     public string? Hex { get; set; }
-    /// <summary>可选：这一格的名字（眼影每格的色名）</summary>
+    /// <summary>Optional name for this pan (e.g. an eyeshadow shade name)</summary>
     public string? Label { get; set; }
 }
 
@@ -17,9 +17,9 @@ public class Product
     public string Name { get; set; } = "";
     public string? ShadeName { get; set; }
 
-    /// <summary>本地图片路径，例如 /images/abc.jpg</summary>
+    /// <summary>Local image path, e.g. /images/abc.jpg</summary>
     public string? ImagePath { get; set; }
-    /// <summary>链接里抓到的色块小图（如果有）</summary>
+    /// <summary>Swatch image scraped from the link, if any</summary>
     public string? SwatchImagePath { get; set; }
     public string? SourceUrl { get; set; }
 
@@ -29,7 +29,7 @@ public class Product
 
     public int GridRows { get; set; } = 1;
     public int GridCols { get; set; } = 1;
-    /// <summary>按行排列，长度 = GridRows * GridCols</summary>
+    /// <summary>Row-major order; length = GridRows * GridCols</summary>
     public List<Swatch> Swatches { get; set; } = new();
 
     public string? Notes { get; set; }
@@ -50,7 +50,7 @@ public class ScrapeResult
     public string? Channel { get; set; }
     public string? ImagePath { get; set; }
     public string? SwatchImagePath { get; set; }
-    /// <summary>页面里直接写了颜色值（少见）</summary>
+    /// <summary>Color value given directly by the page (rare)</summary>
     public string? ColorHex { get; set; }
     public List<string> Warnings { get; set; } = new();
 }

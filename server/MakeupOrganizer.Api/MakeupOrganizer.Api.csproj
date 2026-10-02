@@ -2,14 +2,14 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <!-- 允许用更新的 .NET 运行时（9/10）直接运行 -->
+    <!-- Allow running on newer .NET runtimes (9/10) -->
     <RollForward>Major</RollForward>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>MakeupOrganizer.Api</RootNamespace>
   </PropertyGroup>
 
-  <!-- 数据目录不要被当成发布内容 -->
+  <!-- Don't treat the data folder as publish content -->
   <ItemGroup>
     <Content Remove="data\**" />
     <None Remove="data\**" />

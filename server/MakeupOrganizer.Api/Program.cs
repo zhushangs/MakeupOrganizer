@@ -4,7 +4,7 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 数据目录：默认在项目目录下的 data/，可以在 appsettings.json 里改 "DataDir"
+// Data folder: defaults to data/ under the project folder; change "DataDir" in appsettings.json
 var dataDir = builder.Configuration["DataDir"] is { Length: > 0 } d
     ? Path.GetFullPath(d, builder.Environment.ContentRootPath)
     : Path.Combine(builder.Environment.ContentRootPath, "data");
@@ -34,17 +34,17 @@ builder.Services.AddSingleton(sp => new ImageService(dataDir,
     sp.GetRequiredService<IHttpClientFactory>(), sp.GetRequiredService<ILogger<ImageService>>()));
 builder.Services.AddSingleton<Scraper>();
 
-// 开发时前端跑在 Vite (5173)，允许跨域
+// During development the frontend runs on Vite (5173), so allow CORS
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
 var app = builder.Build();
 app.UseCors();
 
-// 前端（构建后放在 wwwroot）
+// Frontend (built into wwwroot)
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-// 图片
+// Images
 var images = app.Services.GetRequiredService<ImageService>();
 app.UseStaticFiles(new StaticFileOptions
 {
@@ -72,7 +72,7 @@ api.MapPut("/products/{id}", async (string id, Product p, ProductStore s, ImageS
     if (old is null) return Results.NotFound();
     var oldImages = new[] { old.ImagePath, old.SwatchImagePath };
     var updated = await s.UpdateAsync(id, p);
-    // 换了图片的话，旧图没人用就删掉
+    // If the image was replaced, delete the old one when nothing else uses it
     foreach (var path in oldImages)
         if (path is not null && !s.IsImageReferenced(path)) img.TryDelete(path);
     return Results.Ok(updated);
@@ -98,10 +98,10 @@ api.MapPost("/images", async (IFormFile file, ImageService img) =>
 api.MapPost("/scrape", async (ScrapeRequest req, Scraper scraper, CancellationToken ct) =>
     Results.Ok(await scraper.ScrapeAsync(req.Url, ct)));
 
-// 前端路由兜底
+// SPA fallback
 app.MapFallbackToFile("index.html");
 
-// 启动时清理：抓取或上传了但最后没保存的图片（超过 1 天、没被任何商品引用）
+// Startup cleanup: images that were scraped or uploaded but never saved (older than 1 day, not referenced)
 {
     var store = app.Services.GetRequiredService<ProductStore>();
     foreach (var f in Directory.EnumerateFiles(images.ImagesDir))
@@ -112,7 +112,7 @@ app.MapFallbackToFile("index.html");
     }
 }
 
-// 启动时把手机可以访问的地址打印出来
+// On startup, print the addresses the phone can use
 app.Lifetime.ApplicationStarted.Register(() =>
 {
     var port = app.Urls.Select(u => new Uri(u.Replace("*", "localhost").Replace("+", "localhost").Replace("0.0.0.0", "localhost")).Port).FirstOrDefault();
