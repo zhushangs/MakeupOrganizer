@@ -1,50 +1,50 @@
-# 化妆柜 MakeupOrganizer
+# Vanity — Makeup Organizer
 
-整理化妆品的小网站：贴链接自动读取图片和价格，按类别查看色号墙，眼影盘可以自定义格数并逐格吸色。
+A small web app for cataloging makeup. Paste a product link to pull in the image and price automatically, browse each category as a wall of shade swatches, and set up eyeshadow palettes with a custom grid where you pick each pan's color straight from the product photo.
 
-## 结构
+## Structure
 
 ```
-server/MakeupOrganizer.Api   ASP.NET Core (.NET 8) 后端，没有任何 NuGet 依赖
-  ├─ wwwroot/                前端构建产物（已经构建好了，直接能用）
-  └─ data/                   运行后自动生成：products.json + images/
-client/                      React + Vite 前端源码（只在改前端时需要）
-start.bat                    双击启动
+server/MakeupOrganizer.Api   ASP.NET Core (.NET 8) backend, no NuGet dependencies
+  ├─ wwwroot/                Built frontend (already built, ready to use)
+  └─ data/                   Created on first run: products.json + images/
+client/                      React + Vite frontend source (only needed to change the UI)
+start.bat                    Double-click to start
 ```
 
-## 运行（只需要 .NET SDK 8 或更新版本）
+## Running (requires .NET SDK 8 or newer)
 
-1. 双击 `start.bat`（或者在 `server/MakeupOrganizer.Api` 里 `dotnet run`）
-2. 控制台会打印地址：
-   - 电脑上：http://localhost:5080
-   - 手机上（和电脑连同一个 Wi‑Fi）：http://192.168.x.x:5080
-3. 第一次运行 Windows 防火墙会弹窗，勾选“专用网络”允许访问，否则手机连不上。
-4. 手机浏览器打开后，Safari 点“分享 → 添加到主屏幕”，就像 App 一样用。
+1. Double-click `start.bat` (or run `dotnet run` in `server/MakeupOrganizer.Api`).
+2. The console prints the addresses:
+   - On this PC: http://localhost:5080
+   - On your phone (same Wi-Fi): http://192.168.x.x:5080
+3. The first time it runs, Windows Firewall shows a prompt. Allow access on **Private networks**, otherwise your phone can't connect.
+4. Open the address on your phone. In Safari, tap Share → Add to Home Screen to use it like an app.
 
-## 修改前端（需要 Node.js 18+）
+## Changing the frontend (requires Node.js 18+)
 
 ```
 cd client
 npm install
-npm run dev      # 开发：http://localhost:5173 ，/api 自动转发到 5080（后端要同时开着）
-npm run build    # 构建到 server/MakeupOrganizer.Api/wwwroot
+npm run dev      # dev server at http://localhost:5173; /api is proxied to 5080 (keep the backend running)
+npm run build    # builds into server/MakeupOrganizer.Api/wwwroot
 ```
 
-## 链接解析是怎么做的
+## How link parsing works
 
-后端 `POST /api/scrape` 抓页面，按顺序尝试：
+The backend endpoint `POST /api/scrape` fetches the page and tries, in order:
 
-1. Sephora 页面里的 `linkStore` JSON（当前色号、价格、色块小图）
-2. schema.org `Product` JSON-LD（Ulta、大部分百货店和品牌官网）
-3. `og:` / `product:` meta 标签
+1. Sephora's embedded `linkStore` JSON (current shade, price, swatch image)
+2. schema.org `Product` JSON-LD (Ulta, most department stores and brand sites)
+3. `og:` / `product:` meta tags
 4. `<title>`
 
-图片会下载到本地 `data/images/`。颜色的默认值：页面有色值用色值 → 有色块小图取色块平均色 → 否则从商品图里找最饱和的主色。
-不准的话在编辑页用“从图片吸色”或“调色盘”改。
+Images are downloaded to `data/images/`. The default color comes from, in order: a color value on the page → the average color of the swatch image → the most saturated dominant color in the product image.
+If it's off, fix it on the edit page with **Pick from image** or the **Color picker**.
 
-已知限制：部分网站（尤其 Sephora）有反爬，可能返回 403，这时会提示改为手动上传图片。
-淘宝/小红书这类需要登录的网站抓不到。
+Known limitations: some sites (Sephora in particular) have bot protection and may return 403. The app then asks you to upload an image and fill in the details manually.
+Sites that require a login can't be scraped.
 
-## 数据备份
+## Backup
 
-所有数据都在 `server/MakeupOrganizer.Api/data/`，复制这个文件夹就是完整备份。
+All data lives in `server/MakeupOrganizer.Api/data/`. Copying that folder is a full backup.
