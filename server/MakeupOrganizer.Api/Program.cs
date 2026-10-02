@@ -1,0 +1,131 @@
+using System.Net;
+using MakeupOrganizer.Api;
+using Microsoft.Extensions.FileProviders;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// 数据目录：默认在项目目录下的 data/，可以在 appsettings.json 里改 "DataDir"
+var dataDir = builder.Configuration["DataDir"] is { Length: > 0 } d
+    ? Path.GetFullPath(d, builder.Environment.ContentRootPath)
+    : Path.Combine(builder.Environment.ContentRootPath, "data");
+
+builder.Services.ConfigureHttpJsonOptions(o =>
+{
+    o.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+});
+
+builder.Services.AddHttpClient("scraper", c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(20);
+    c.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36");
+    c.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Language", "en-US,en;q=0.9,zh-CN;q=0.8");
+}).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    AutomaticDecompression = DecompressionMethods.All,
+    AllowAutoRedirect = true,
+    MaxAutomaticRedirections = 10,
+    UseCookies = true,
+    CookieContainer = new CookieContainer(),
+});
+
+builder.Services.AddSingleton(new ProductStore(dataDir));
+builder.Services.AddSingleton(sp => new ImageService(dataDir,
+    sp.GetRequiredService<IHttpClientFactory>(), sp.GetRequiredService<ILogger<ImageService>>()));
+builder.Services.AddSingleton<Scraper>();
+
+// 开发时前端跑在 Vite (5173)，允许跨域
+builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+
+var app = builder.Build();
+app.UseCors();
+
+// 前端（构建后放在 wwwroot）
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+// 图片
+var images = app.Services.GetRequiredService<ImageService>();
+app.UseStaticFiles(new StaticFileOptions
+{
+    RequestPath = "/images",
+    FileProvider = new PhysicalFileProvider(images.ImagesDir),
+    OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = "public,max-age=31536000,immutable"
+});
+
+var api = app.MapGroup("/api");
+
+api.MapGet("/products", async (ProductStore s) => await s.GetAllAsync());
+
+api.MapGet("/products/{id}", async (string id, ProductStore s) =>
+    await s.GetAsync(id) is { } p ? Results.Ok(p) : Results.NotFound());
+
+api.MapPost("/products", async (Product p, ProductStore s) =>
+{
+    var created = await s.AddAsync(p);
+    return Results.Created($"/api/products/{created.Id}", created);
+});
+
+api.MapPut("/products/{id}", async (string id, Product p, ProductStore s, ImageService img) =>
+{
+    var old = await s.GetAsync(id);
+    if (old is null) return Results.NotFound();
+    var oldImages = new[] { old.ImagePath, old.SwatchImagePath };
+    var updated = await s.UpdateAsync(id, p);
+    // 换了图片的话，旧图没人用就删掉
+    foreach (var path in oldImages)
+        if (path is not null && !s.IsImageReferenced(path)) img.TryDelete(path);
+    return Results.Ok(updated);
+});
+
+api.MapDelete("/products/{id}", async (string id, ProductStore s, ImageService img) =>
+{
+    var removed = await s.DeleteAsync(id);
+    if (removed is null) return Results.NotFound();
+    foreach (var path in new[] { removed.ImagePath, removed.SwatchImagePath })
+        if (path is not null && !s.IsImageReferenced(path)) img.TryDelete(path);
+    return Results.NoContent();
+});
+
+api.MapPost("/images", async (IFormFile file, ImageService img) =>
+{
+    if (file.Length > ImageService.MaxBytes) return Results.BadRequest(new { error = "Image is too large" });
+    await using var s = file.OpenReadStream();
+    var path = await img.SaveAsync(s, file.ContentType);
+    return path is null ? Results.BadRequest(new { error = "Unsupported image format" }) : Results.Ok(new { path });
+}).DisableAntiforgery();
+
+api.MapPost("/scrape", async (ScrapeRequest req, Scraper scraper, CancellationToken ct) =>
+    Results.Ok(await scraper.ScrapeAsync(req.Url, ct)));
+
+// 前端路由兜底
+app.MapFallbackToFile("index.html");
+
+// 启动时清理：抓取或上传了但最后没保存的图片（超过 1 天、没被任何商品引用）
+{
+    var store = app.Services.GetRequiredService<ProductStore>();
+    foreach (var f in Directory.EnumerateFiles(images.ImagesDir))
+    {
+        var path = "/images/" + Path.GetFileName(f);
+        if (File.GetLastWriteTimeUtc(f) < DateTime.UtcNow.AddDays(-1) && !store.IsImageReferenced(path))
+            images.TryDelete(path);
+    }
+}
+
+// 启动时把手机可以访问的地址打印出来
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    var port = app.Urls.Select(u => new Uri(u.Replace("*", "localhost").Replace("+", "localhost").Replace("0.0.0.0", "localhost")).Port).FirstOrDefault();
+    var ips = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
+        .Where(n => n.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up)
+        .SelectMany(n => n.GetIPProperties().UnicastAddresses)
+        .Where(a => a.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !IPAddress.IsLoopback(a.Address))
+        .Select(a => a.Address.ToString());
+    Console.WriteLine();
+    Console.WriteLine($"  Data folder: {dataDir}");
+    Console.WriteLine($"  Open on this PC: http://localhost:{port}");
+    foreach (var ip in ips) Console.WriteLine($"  Open on your phone (same Wi-Fi): http://{ip}:{port}");
+    Console.WriteLine();
+});
+
+app.Run();

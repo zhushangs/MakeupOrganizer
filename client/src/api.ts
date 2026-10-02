@@ -1,0 +1,51 @@
+import type { Product, ProductInput, ScrapeResult } from './types'
+
+async function json<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    let msg = `Request failed (${res.status})`
+    try {
+      const body = await res.json()
+      if (body?.error) msg = body.error
+    } catch { /* ignore */ }
+    throw new Error(msg)
+  }
+  return res.status === 204 ? (undefined as T) : res.json()
+}
+
+export const api = {
+  list: () => fetch('/api/products').then(r => json<Product[]>(r)),
+  get: (id: string) => fetch(`/api/products/${id}`).then(r => json<Product>(r)),
+  create: (p: ProductInput) =>
+    fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) })
+      .then(r => json<Product>(r)),
+  update: (id: string, p: ProductInput) =>
+    fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) })
+      .then(r => json<Product>(r)),
+  remove: (id: string) => fetch(`/api/products/${id}`, { method: 'DELETE' }).then(r => json<void>(r)),
+  scrape: (url: string) =>
+    fetch('/api/scrape', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) })
+      .then(r => json<ScrapeResult>(r)),
+  async uploadImage(file: Blob, name = 'photo.jpg'): Promise<string> {
+    const fd = new FormData()
+    fd.append('file', file, name)
+    const res = await json<{ path: string }>(await fetch('/api/images', { method: 'POST', body: fd }))
+    return res.path
+  },
+}
+
+/** 手机拍的照片动辄 5–10MB，上传前缩到 1600px 以内 */
+export async function shrinkImage(file: File, max = 1600): Promise<Blob> {
+  if (!file.type.startsWith('image/') || file.type === 'image/gif') return file
+  try {
+    const bmp = await createImageBitmap(file)
+    const scale = Math.min(1, max / Math.max(bmp.width, bmp.height))
+    if (scale === 1 && file.size < 1.5 * 1024 * 1024) return file
+    const c = document.createElement('canvas')
+    c.width = Math.round(bmp.width * scale)
+    c.height = Math.round(bmp.height * scale)
+    c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height)
+    return await new Promise<Blob>((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error('Image compression failed'))), 'image/jpeg', 0.88))
+  } catch {
+    return file
+  }
+}
