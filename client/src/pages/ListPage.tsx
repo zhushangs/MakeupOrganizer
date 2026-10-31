@@ -107,7 +107,7 @@ export default function ListPage({ items, error, category, openItem, onChanged }
                 <div className={'ic-img' + (multi ? ' pal' : '')}
                   style={!multi && hex ? { background: hex } : undefined}>
                   {multi
-                    ? <div className="ic-pal" style={{ width: `${84 * Math.min(1, p.gridCols / p.gridRows)}%` }}><PaletteGrid p={p} /></div>
+                    ? <div className="ic-pal"><PaletteGrid p={p} /></div>
                     : !hex && (p.imagePath
                       ? <img src={p.imagePath} alt="" loading="lazy" />
                       : <span className="ic-empty">No color yet</span>)}
