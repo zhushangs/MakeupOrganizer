@@ -8,7 +8,8 @@
     "setup": "node scripts/setup.mjs",
     "migrate-data": "node scripts/migrate-data.mjs",
     "deploy": "npm run build:client && wrangler deploy",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "set-password": "wrangler secret put APP_PASSWORD"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261031.1",

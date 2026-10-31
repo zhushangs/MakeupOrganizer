@@ -6,11 +6,15 @@
  * The frontend is served as static assets from the same Worker (see wrangler.toml).
  */
 
+import { checkAuth } from './auth'
+
 export interface Env {
   DB: D1Database
   IMAGES: R2Bucket
   ASSETS: Fetcher
   SERPER_API_KEY?: string
+  /** password for the whole app (`npm run set-password`); if unset the app is open */
+  APP_PASSWORD?: string
   /** optional, for testing against a mock */
   SERPER_BASE_URL?: string
 }
@@ -318,6 +322,8 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url)
     try {
+      const blocked = await checkAuth(req, env.APP_PASSWORD)
+      if (blocked) return blocked
       if (url.pathname.startsWith('/api/')) return await handleApi(req, env, url)
       if (url.pathname.startsWith('/images/')) return await serveImage(env, decodeURIComponent(url.pathname.slice(8)))
       return env.ASSETS.fetch(req)

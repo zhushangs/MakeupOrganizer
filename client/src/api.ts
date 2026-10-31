@@ -1,6 +1,11 @@
 import type { AppSettings, ImageSearchHit, Product, ProductInput } from './types'
 
 async function json<T>(res: Response): Promise<T> {
+  // Cloudflare version with a password: the sign-in expired or was never done
+  if (res.status === 401) {
+    location.href = '/login'
+    throw new Error('Please sign in')
+  }
   if (!res.ok) {
     let msg = `Request failed (${res.status})`
     try {

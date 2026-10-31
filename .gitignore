@@ -8,3 +8,4 @@ server/MakeupOrganizer.Api/appsettings.Local.json
 client/public/ocr/
 worker/.wrangler/
 worker/.dev.vars
+*.tsbuildinfo

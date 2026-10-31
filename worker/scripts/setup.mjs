@@ -69,4 +69,4 @@ if (existsSync(local)) {
 console.log(`
 Done! Next:
   - Copy your existing items and pictures:   npm run migrate-data
-  - Protect it with a login (see README → "Lock it with Cloudflare Access")`)
+  - Set a password so only you can open it:   npm run set-password`)

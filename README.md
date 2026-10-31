@@ -94,15 +94,20 @@ Everything runs on Cloudflare's free tier: the Worker serves the app and the API
    `setup` prints the address, e.g. `https://makeup-organizer.<your-subdomain>.workers.dev`. If `appsettings.Local.json` has your Serper key, it's copied to the Worker automatically; otherwise run `npx wrangler secret put SERPER_API_KEY`.
 4. Open the address on your phone and **Add to Home Screen**.
 
-### Lock it with Cloudflare Access (email login)
+### Set a password (do this right away)
 
-Without this, anyone who finds the address could see and change your data.
+Without a password, anyone who finds the address could see and change your data.
 
-1. Dashboard → **Workers & Pages** → **makeup-organizer** → **Settings** → **Domains & Routes**.
-2. Next to `workers.dev`, click **Enable Cloudflare Access**.
-3. Click **Manage Cloudflare Access** and make sure the policy allows only your email address.
+```
+cd worker
+npm run set-password      # type the password you want (hidden), then Enter
+```
 
-Opening the app now asks for your email and sends a one-time code; you stay signed in on that device for a while.
+Opening the app now shows a sign-in page; each phone/browser signs in once and stays signed in for a year. To change the password, run `npm run set-password` again (everyone gets signed out). **Sign out** is at the bottom of Categories & brands.
+
+The pictures, data and image search are all behind the password; only the app icon and manifest (needed for Add to Home Screen) are public.
+
+Alternatively you can use Cloudflare Access (email one-time codes): Workers & Pages → makeup-organizer → Settings → Domains & Routes → **Enable Access** next to `workers.dev`. Its free plan may ask for a payment method.
 
 ### Updating after code changes
 

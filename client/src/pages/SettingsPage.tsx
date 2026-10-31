@@ -153,6 +153,9 @@ export default function SettingsPage({ items, settings, onSave }: {
         </div>
 
         {message && <div className={message.ok ? 'hint' : 'err'} style={{ textAlign: 'center' }}>{message.text}</div>}
+
+        {/* only does something on the password-protected Cloudflare version */}
+        <a className="link-btn small" href="/logout" style={{ alignSelf: 'center', textDecoration: 'none' }}>Sign out</a>
       </div>
 
       <div className="save-bar">
