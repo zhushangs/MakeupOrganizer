@@ -100,7 +100,8 @@ export default function ListPage({ items, error, category, openItem, onChanged }
             const multi = p.gridRows * p.gridCols > 1
             const hex = p.swatches[0]?.hex
             return (
-              <button key={p.id} className="item-card" onClick={() => setOpenId(p.id)}>
+              <button key={p.id} className="item-card" onClick={() => setOpenId(p.id)}
+                title={[p.brand, p.name, p.shadeName].filter(Boolean).join(' · ')}>
                 {/* Home shows the color card: one block of color, or the palette in its real layout */}
                 <div className={'ic-img' + (multi ? ' pal' : '')}
                   style={!multi && hex ? { background: hex } : undefined}>
