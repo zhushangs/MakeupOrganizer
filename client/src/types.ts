@@ -20,6 +20,8 @@ export interface Product {
   /** which pan each grid cell belongs to (pans spanning several cells); null = one pan per cell */
   layout?: number[] | null
   swatches: Swatch[]
+  /** clear / colorless product: no color card, the product photo is shown instead */
+  noColor?: boolean
   notes?: string | null
   createdAt: string
   updatedAt: string

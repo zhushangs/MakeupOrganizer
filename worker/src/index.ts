@@ -38,6 +38,7 @@ interface Product {
   gridCols: number
   layout?: number[] | null
   swatches: Swatch[]
+  noColor?: boolean
   notes?: string | null
   createdAt: string
   updatedAt: string
@@ -121,6 +122,7 @@ function normalizeProduct(input: any, id: string, createdAt: string): Product {
     gridCols,
     layout,
     swatches,
+    noColor: !!input?.noColor,
     notes: optStr(input?.notes),
     createdAt,
     updatedAt: new Date().toISOString(),

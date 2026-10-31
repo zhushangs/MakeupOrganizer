@@ -52,7 +52,9 @@ Online image search uses [Serper.dev](https://serper.dev) (Google Images results
 - The picture is downloaded to `data/images/` and the color card is generated from its most saturated dominant color. If it's off, drag on the picture to pick the exact spot, or use the color picker.
 - Eyeshadow palettes: set rows × columns, then tap each pan on the picture; it moves to the next pan automatically.
 - **Categories & brands** (gear icon on the home page): add, rename, reorder or remove categories (a category can be marked as a palette with a default layout; one in use can't be removed), and keep your own brand list. Your brands and every brand you already own are suggested when typing and recognized in screenshot import. You can also add a category on the spot with **+ New** when adding an item. Stored in `data/settings.json`.
-- **View all as chart** shows the whole category as one color chart, sorted by color.
+- **View all as chart** shows the category as one color chart, sorted by color. From **All**, the chart is split into one section per category.
+- Clear / colorless products: tick **No color card** in the color step (or in Edit). The product picture is shown instead of a color everywhere (home, details, saved card, chart).
+- Search matches the start of words in brand, product, shade and pan names (e.g. `mac` finds MAC but not something bought at Macy's).
 - Saving images on iPhone: press and hold the card or chart → **Save to Photos**. On a computer, use **Download**.
 
 ### Screenshot import tips

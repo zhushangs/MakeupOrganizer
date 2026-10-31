@@ -9,7 +9,11 @@ export default function SwatchCard({ p }: { p: Product }) {
   const hex = p.swatches[0]?.hex
   return (
     <div className="swatch-card">
-      {multi ? (
+      {p.noColor ? (
+        <div className="sc-photo">
+          {p.imagePath ? <img src={p.imagePath} alt="" /> : <span>No picture yet</span>}
+        </div>
+      ) : multi ? (
         <PanGrid shape={p} className="sc-grid">
           {i => {
             const s = p.swatches[i] ?? {}

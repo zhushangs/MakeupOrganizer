@@ -1,5 +1,5 @@
 import { categoryOf, type Product } from './types'
-import { isDark } from './color'
+import { isDark, loadImage } from './color'
 import { isMulti, panRects } from './layout'
 
 /** Color cards drawn on a canvas so they can be saved as PNG. */
@@ -61,8 +61,43 @@ function toUrl(c: HTMLCanvasElement) {
   return c.toDataURL('image/png')
 }
 
-/** One product's color card (portrait, Instagram-ish 4:5). */
-export function renderProductCard(p: Product): string {
+/** For products without a color card: the product photo, contained on white */
+function drawPhoto(ctx: CanvasRenderingContext2D, img: HTMLImageElement | null, x: number, y: number, w: number, h: number, r: number) {
+  ctx.save()
+  roundRect(ctx, x, y, w, h, r)
+  ctx.clip()
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(x, y, w, h)
+  if (img) {
+    const pad = Math.min(w, h) * 0.06
+    const scale = Math.min((w - pad * 2) / img.naturalWidth, (h - pad * 2) / img.naturalHeight)
+    const iw = img.naturalWidth * scale, ih = img.naturalHeight * scale
+    ctx.drawImage(img, x + (w - iw) / 2, y + (h - ih) / 2, iw, ih)
+  } else {
+    ctx.fillStyle = INK3
+    ctx.font = `500 ${Math.round(w * 0.08)}px ${FONT}`
+    ctx.textAlign = 'center'
+    ctx.fillText('No color', x + w / 2, y + h / 2)
+    ctx.textAlign = 'left'
+  }
+  ctx.restore()
+  roundRect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, r)
+  ctx.strokeStyle = 'rgba(0,0,0,.08)'
+  ctx.lineWidth = 1
+  ctx.stroke()
+}
+
+/** Product photos for items without a color card (same-origin, so the canvas stays exportable) */
+async function photos(items: Product[]) {
+  const map = new Map<string, HTMLImageElement | null>()
+  await Promise.all(items.filter(p => p.noColor && p.imagePath).map(async p => {
+    map.set(p.id, await loadImage(p.imagePath!).catch(() => null))
+  }))
+  return map
+}
+
+/** One product's color card (portrait, Instagram-ish 4:5). Products without a color show their photo. */
+export async function renderProductCard(p: Product): Promise<string> {
   const W = 1080, H = 1350, pad = 80
   const c = document.createElement('canvas')
   c.width = W; c.height = H
@@ -70,14 +105,15 @@ export function renderProductCard(p: Product): string {
   ctx.fillStyle = BG
   ctx.fillRect(0, 0, W, H)
 
-  const multi = isMulti(p)
+  const multi = !p.noColor && isMulti(p)
   const sw = W - pad * 2
   const sh = multi ? Math.min(820, (sw / p.gridCols) * p.gridRows) : 820
-  drawSwatch(ctx, p, pad, pad, sw, sh, 36)
+  if (p.noColor) drawPhoto(ctx, (await photos([p])).get(p.id) ?? null, pad, pad, sw, sh, 36)
+  else drawSwatch(ctx, p, pad, pad, sw, sh, 36)
 
   // hex on the swatch for single colors
   const hex = p.swatches[0]?.hex
-  if (!multi && hex) {
+  if (!p.noColor && !multi && hex) {
     ctx.font = `500 34px ${MONO}`
     ctx.fillStyle = isDark(hex) ? 'rgba(255,255,255,.85)' : 'rgba(42,35,33,.7)'
     ctx.textBaseline = 'alphabetic'
@@ -113,16 +149,23 @@ export function renderProductCard(p: Product): string {
   return toUrl(c)
 }
 
-/** All products of a category on one chart. */
-export function renderChart(title: string, items: Product[]): string {
-  const W = 1200, pad = 64
-  const cols = items.length <= 4 ? Math.max(2, items.length) : items.length <= 12 ? 4 : 5
-  const gap = 28
+export interface ChartSection { label?: string; items: Product[] }
+
+/**
+ * Color chart. One section for a single category; for "All", one section per category
+ * (each with its own heading), so lipsticks, palettes etc. aren't mixed together.
+ */
+export async function renderChart(title: string, sections: ChartSection[]): Promise<string> {
+  const W = 1200, pad = 64, gap = 28, textH = 84, headH = 150, secHead = 92
+  const all = sections.flatMap(s => s.items)
+  const imgs = await photos(all)
+  const cols = all.length <= 4 ? Math.max(2, all.length) : all.length <= 12 ? 4 : 5
   const cell = (W - pad * 2 - gap * (cols - 1)) / cols
-  const textH = 84
-  const rows = Math.max(1, Math.ceil(items.length / cols))
-  const headH = 150
-  const H = pad + headH + rows * (cell + textH) + (rows - 1) * gap + pad
+  const sectionHeight = (s: ChartSection) => {
+    const rows = Math.max(1, Math.ceil(s.items.length / cols))
+    return (s.label ? secHead : 0) + rows * (cell + textH) + (rows - 1) * gap
+  }
+  const H = pad + headH + sections.reduce((sum, s) => sum + sectionHeight(s), 0) + (sections.length - 1) * 48 + pad
 
   const c = document.createElement('canvas')
   c.width = W; c.height = Math.round(H)
@@ -137,22 +180,41 @@ export function renderChart(title: string, items: Product[]): string {
   ctx.fillStyle = INK3
   ctx.font = `500 28px ${FONT}`
   const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-  const noun = items.some(isMulti) ? 'item' : 'shade'
-  ctx.fillText(`${items.length} ${noun}${items.length === 1 ? '' : 's'} · ${date}`, pad, pad + 108)
+  const noun = all.some(p => p.noColor || isMulti(p)) ? 'item' : 'shade'
+  ctx.fillText(`${all.length} ${noun}${all.length === 1 ? '' : 's'} · ${date}`, pad, pad + 108)
 
-  items.forEach((p, i) => {
-    const x = pad + (i % cols) * (cell + gap)
-    const y = pad + headH + Math.floor(i / cols) * (cell + textH + gap)
-    const multi = isMulti(p)
-    const h = multi ? Math.min(cell, (cell / p.gridCols) * p.gridRows) : cell
-    drawSwatch(ctx, p, x, y + (cell - h), cell, h, 18)
-    ctx.fillStyle = INK
-    ctx.font = `600 ${cols >= 5 ? 22 : 25}px ${FONT}`
-    ctx.fillText(fit(ctx, p.shadeName || p.name, cell), x, y + cell + 36)
-    ctx.fillStyle = INK2
-    ctx.font = `400 ${cols >= 5 ? 19 : 21}px ${FONT}`
-    ctx.fillText(fit(ctx, p.brand, cell), x, y + cell + 66)
-  })
+  let top = pad + headH
+  for (const s of sections) {
+    if (s.label) {
+      ctx.fillStyle = INK
+      ctx.font = `700 36px ${FONT}`
+      ctx.fillText(s.label, pad, top + 44)
+      const labelW = ctx.measureText(s.label).width
+      ctx.fillStyle = INK3
+      ctx.font = `500 24px ${FONT}`
+      ctx.fillText(String(s.items.length), pad + labelW + 14, top + 44)
+      ctx.fillStyle = '#e4d9d1'
+      ctx.fillRect(pad, top + 66, W - pad * 2, 2)
+      top += secHead
+    }
+    s.items.forEach((p, i) => {
+      const x = pad + (i % cols) * (cell + gap)
+      const y = top + Math.floor(i / cols) * (cell + textH + gap)
+      if (p.noColor) drawPhoto(ctx, imgs.get(p.id) ?? null, x, y, cell, cell, 18)
+      else {
+        const multi = isMulti(p)
+        const h = multi ? Math.min(cell, (cell / p.gridCols) * p.gridRows) : cell
+        drawSwatch(ctx, p, x, y + (cell - h), cell, h, 18)
+      }
+      ctx.fillStyle = INK
+      ctx.font = `600 ${cols >= 5 ? 22 : 25}px ${FONT}`
+      ctx.fillText(fit(ctx, p.shadeName || p.name, cell), x, y + cell + 36)
+      ctx.fillStyle = INK2
+      ctx.font = `400 ${cols >= 5 ? 19 : 21}px ${FONT}`
+      ctx.fillText(fit(ctx, p.brand, cell), x, y + cell + 66)
+    })
+    top += sectionHeight(s) - (s.label ? secHead : 0) + 48
+  }
 
   return toUrl(c)
 }

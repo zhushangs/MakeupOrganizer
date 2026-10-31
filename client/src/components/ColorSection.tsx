@@ -8,6 +8,7 @@ import PaletteLayout from './PaletteLayout'
 
 export interface ColorValue extends Shape {
   swatches: Swatch[]
+  noColor?: boolean
 }
 
 export function resizeSwatches(sw: Swatch[], oldCols: number, rows: number, cols: number): Swatch[] {
@@ -40,8 +41,17 @@ export default function ColorSection({ value, imagePath, showLayout, onChange }:
 
   const images = imagePath ? [{ label: 'Product', src: imagePath }] : []
 
+  const noColorToggle = (
+    <label className="check small no-color">
+      <input type="checkbox" checked={!!value.noColor} onChange={e => onChange({ ...value, noColor: e.target.checked })} />
+      No color card (clear / colorless product) — show the product picture instead
+    </label>
+  )
+  if (value.noColor) return noColorToggle
+
   return (
     <>
+      {noColorToggle}
       {(showLayout || multi) && <PaletteLayout value={value} onChange={setShape} />}
 
       {multi && (

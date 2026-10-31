@@ -38,6 +38,9 @@ public class Product
     /// <summary>One per pan, in reading order</summary>
     public List<Swatch> Swatches { get; set; } = new();
 
+    /// <summary>Clear / colorless product: no color card, the product picture is shown instead</summary>
+    public bool NoColor { get; set; }
+
     /// <summary>Free-form notes / how it wears</summary>
     public string? Notes { get; set; }
     public DateTimeOffset CreatedAt { get; set; }

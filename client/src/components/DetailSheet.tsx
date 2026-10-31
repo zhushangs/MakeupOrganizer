@@ -39,7 +39,8 @@ export default function DetailSheet({ p, onClose, onDeleted }: {
 
   return (
     <Sheet onClose={onClose}>
-      {p.imagePath && <img className="d-photo" src={p.imagePath} alt="" />}
+      {/* without a color card the card itself shows the photo, so don't repeat it */}
+      {p.imagePath && !p.noColor && <img className="d-photo" src={p.imagePath} alt="" />}
       <SwatchCard p={p} />
 
       {(p.channel || orig || paid || p.notes) && (
@@ -53,11 +54,11 @@ export default function DetailSheet({ p, onClose, onDeleted }: {
 
       {!p.imagePath && (
         <button className="btn primary" style={{ width: '100%', marginBottom: 10 }} onClick={() => go(`/image/${p.id}`)}>
-          Find a picture &amp; make the color card
+          {p.noColor ? 'Find a picture' : <>Find a picture &amp; make the color card</>}
         </button>
       )}
-      <button className="btn" style={{ width: '100%', marginBottom: 10 }} onClick={() => setCard(renderProductCard(p))}>
-        Save color card as image
+      <button className="btn" style={{ width: '100%', marginBottom: 10 }} onClick={async () => setCard(await renderProductCard(p))}>
+        {p.noColor ? 'Save card as image' : 'Save color card as image'}
       </button>
       <div className="row">
         <button className={'btn danger' + (confirm ? ' confirm' : '')} onClick={del} disabled={busy}>

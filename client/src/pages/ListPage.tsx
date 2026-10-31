@@ -9,6 +9,20 @@ import { go } from '../App'
 
 type Sort = 'hue' | 'new' | 'brand'
 
+const words = (s?: string | null) => (s ?? '').toLowerCase().split(/[^a-z0-9\u00c0-\u024f\u4e00-\u9fff#]+/).filter(Boolean)
+
+/**
+ * Search: every word you type must be the start of a word in the brand, product, shade or pan names
+ * ("mac" finds MAC but not Chanel bought at Macy's; "ruby w" finds Ruby Woo). Brand also matches as a
+ * whole phrase ("makeup by" → Makeup by Mario).
+ */
+function matches(p: Product, query: string) {
+  const fields = [p.brand, p.name, p.shadeName, ...p.swatches.map(s => s.label)]
+  const all = fields.flatMap(words)
+  if ((p.brand ?? '').toLowerCase().startsWith(query)) return true
+  return words(query).every(q => all.some(w => w.startsWith(q)))
+}
+
 const store = {
   get(k: string) { try { return localStorage.getItem(k) } catch { return null } },
   set(k: string, v: string) { try { localStorage.setItem(k, v) } catch { /* ignore */ } },
@@ -39,10 +53,9 @@ export default function ListPage({ items, error, category, openItem, onChanged }
   const visible = useMemo(() => {
     const kw = q.trim().toLowerCase()
     let list = (items ?? []).filter(p => cat === 'all' || p.category === cat)
-    if (kw) list = list.filter(p => [p.brand, p.name, p.shadeName, p.channel, ...p.swatches.map(s => s.label)]
-      .some(x => x?.toLowerCase().includes(kw)))
+    if (kw) list = list.filter(p => matches(p, kw))
     const sorted = [...list]
-    if (sort === 'hue') sorted.sort((a, b) => hueSortKey(a.swatches[0]?.hex) - hueSortKey(b.swatches[0]?.hex))
+    if (sort === 'hue') sorted.sort((a, b) => (a.noColor ? 1 : 0) - (b.noColor ? 1 : 0) || hueSortKey(a.swatches[0]?.hex) - hueSortKey(b.swatches[0]?.hex))
     if (sort === 'brand') sorted.sort((a, b) => a.brand.localeCompare(b.brand) || (a.shadeName ?? '').localeCompare(b.shadeName ?? ''))
     // 'new': the backend already returns newest first
     return sorted
@@ -98,8 +111,9 @@ export default function ListPage({ items, error, category, openItem, onChanged }
       {visible.length > 0 && (
         <div className="cards">
           {visible.map(p => {
-            const multi = isMulti(p)
-            const hex = p.swatches[0]?.hex
+            // no color card (clear products): show the product photo instead
+            const multi = !p.noColor && isMulti(p)
+            const hex = p.noColor ? null : p.swatches[0]?.hex
             return (
               <button key={p.id} className="item-card" onClick={() => setOpenId(p.id)}
                 title={[p.brand, p.name, p.shadeName].filter(Boolean).join(' · ')}>
@@ -110,7 +124,7 @@ export default function ListPage({ items, error, category, openItem, onChanged }
                     ? <div className="ic-pal"><PaletteGrid p={p} /></div>
                     : !hex && (p.imagePath
                       ? <img src={p.imagePath} alt="" loading="lazy" />
-                      : <span className="ic-empty">No color yet</span>)}
+                      : <span className="ic-empty">{p.noColor ? 'No picture yet' : 'No color yet'}</span>)}
                   {p.imagePath && (multi || hex) && <img className="ic-thumb" src={p.imagePath} alt="" loading="lazy" />}
                 </div>
                 <div className="ic-text">
