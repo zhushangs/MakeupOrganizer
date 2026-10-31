@@ -50,6 +50,7 @@ Online image search uses [Serper.dev](https://serper.dev) (Google Images results
 ### Screenshot import tips
 
 - Crop or zoom so the product rows are large; full-resolution phone screenshots work best.
+- A plain list works too (e.g. a Notes screenshot): one product per line or separated by commas, like `mac lipstick ruby woo, ysl lipstick 416`. Brand, product type and shade are split out; headings without a brand or product word are skipped.
 - Recognition is English-only. Brands are matched against a built-in list plus your own brands (Categories & brands) and brands you already own.
 - Struck-through original prices are hard to read and may come out a little off; double-check them.
 

@@ -38,7 +38,7 @@ const BRANDS = [
   'Judydoll', 'Florasis', 'Perfect Diary', 'Colorkey', 'Mao Geping', 'Kevyn Aucoin', 'Victoria Beckham Beauty',
   'Jones Road', 'Rhode', 'Lawless', 'One/Size', 'ONE/SIZE', 'Sol de Janeiro', 'Supergoop!', 'Supergoop',
   'Dolce&Gabbana', 'Dolce & Gabbana', 'Nudestix', 'Bésame', 'Besame', 'Lisa Eldridge', 'Byredo', 'Rare Beauty by Selena Gomez',
-  'KVD Beauty', 'KVD', 'Fenty', 'Huda', 'Mented Cosmetics', 'Dose of Colors', 'Jeffree Star Cosmetics', 'Jeffree Star',
+  'KVD Beauty', 'KVD', 'Glow Recipe', 'Tatcha', 'Drunk Elephant', 'Fresh', 'Bobbi Brown', 'Eadem', 'Viori', 'Merit Beauty', 'Fenty', 'Huda', 'Mented Cosmetics', 'Dose of Colors', 'Jeffree Star Cosmetics', 'Jeffree Star',
 ].sort((a, b) => b.length - a.length)
 
 const CHANNELS: [RegExp, string][] = [
@@ -51,7 +51,7 @@ const CHANNELS: [RegExp, string][] = [
 
 const CATEGORY_RULES: [RegExp, string][] = [
   [/palette|eye ?shadow|eyeshadow|眼影/i, 'eyeshadow'],
-  [/lipstick|lip colou?r|rouge|lip balm|lip crayon|口红|唇膏/i, 'lipstick'],
+  [/lipstick|lip colou?r|rouge|lip balm|lip glow|lip crayon|口红|唇膏/i, 'lipstick'],
   [/gloss|lip oil|lip stain|liquid lip|lacquer|lip tint|lip luminizer|唇釉|唇彩|唇蜜/i, 'lipgloss'],
   [/blush|cheek|腮红/i, 'blush'],
   [/highlight|bronzer|contour|glow stick|高光|修容/i, 'highlight'],
@@ -256,6 +256,74 @@ const isPriceLine = (l: string) => prices(l).length > 0 && !NOISE.test(l) && !TO
 const isPriceOnly = (l: string) =>
   prices(l).length > 0 && (/^[\s$\d.,:]+$/.test(l) || /^(list|was|reg\.?|regular|original|compare at|msrp|retail)\b/i.test(l))
 
+/**
+ * Product-type words, used to split a one-line entry into product name and shade:
+ * "MAC Matte Lipstick Ruby Woo" → name "Matte Lipstick", shade "Ruby Woo".
+ */
+const TYPE_WORDS = [
+  'liquid lipstick', 'lipstick', 'lip stick', 'lip gloss', 'lip oil', 'lip tint', 'lip stain', 'lip liner', 'lip pencil',
+  'lip balm', 'lip butter', 'lip lacquer', 'lip luminizer', 'lip glow', 'gloss', 'rouge', 'eyeshadow palette',
+  'eyeshadow', 'eye shadow', 'eye palette', 'palette', 'quad', 'blush', 'cheek tint', 'highlighter', 'highlight',
+  'bronzer', 'contour', 'foundation', 'concealer', 'skin tint', 'setting powder', 'powder', 'primer', 'cushion',
+  'mascara', 'eyeliner', 'eye liner', 'brow pencil', 'brow gel', 'setting spray',
+  '口红', '唇膏', '唇釉', '唇彩', '眼影', '腮红', '高光', '修容', '粉底', '遮瑕', '气垫', '散粉', '睫毛膏', '眼线',
+].sort((a, b) => b.length - a.length)
+
+const titleCase = (s: string) => s.replace(/\b([a-z])([a-z']*)/g, (_, a, b) => a.toUpperCase() + b)
+
+/** "1. MAC lipstick ruby woo" → one item. Brand from the brand list (or first word), then type word, then shade. */
+function parseListLine(raw: string): DraftItem | null {
+  const line = clean(raw.replace(/^\s*(\d+[.)、]|[-•*·]|☐|☑|✓)\s*/, '')).replace(/\s*[-–:]\s*/g, ' ').trim()
+  if (line.length < 2 || NOISE.test(line) || !/[A-Za-z一-鿿]{2}/.test(line)) return null
+  const allLower = line === line.toLowerCase()
+
+  let brand: string | null = null
+  let rest = line
+  for (const { brand: b, re } of BRAND_RES) {
+    const m = re.exec(line)
+    if (m) { brand = b === 'M·A·C' ? 'MAC' : b; rest = line.slice(m[0].length).trim(); break }
+  }
+
+  const lower = rest.toLowerCase()
+  let name: string | null = null
+  let shade: string | null = null
+  const hit = TYPE_WORDS.map(w => ({ w, i: lower.indexOf(w) })).filter(x => x.i >= 0).sort((a, b) => a.i - b.i)[0]
+  if (hit) {
+    const end = hit.i + hit.w.length
+    if (!brand && hit.i > 0) {
+      // unknown brand: everything before the first word of the product name… keep it simple, first word is the brand
+      const words = rest.slice(0, hit.i).trim().split(/\s+/)
+      brand = words.shift() ?? null
+      name = [...words, rest.slice(hit.i, end)].join(' ').trim()
+    } else {
+      name = rest.slice(0, end).trim()
+    }
+    shade = rest.slice(end).trim() || null
+  } else if (brand) {
+    // "Dior 999" → shade 999; "fwee lip suede 07" → name "lip suede", shade "07"
+    const m = /^(.*?)\s*(#?\d[\w-]*)$/.exec(rest)
+    if (m && m[1]) { name = m[1]; shade = m[2] }
+    else shade = rest || null
+  } else {
+    // no known brand and no product word: probably a heading ("My makeup"), not an item
+    return null
+  }
+
+  const fix = (v: string | null) => (v && allLower ? titleCase(v) : v)
+  return {
+    brand: brand && allLower && !BRANDS.includes(brand) ? titleCase(brand) : brand,
+    name: fix(name),
+    shadeName: shade && allLower && /[a-z]/.test(shade) ? titleCase(shade) : shade,
+    category: guessCategory(`${name ?? ''} ${shade ?? ''}`) ?? 'other',
+    originalPrice: null,
+    paidPrice: null,
+  }
+}
+
+/** A plain list (notes app, chat message): no prices and no Color/Size/ITEM lines anywhere */
+const looksLikeList = (lines: string[]) =>
+  lines.length > 0 && !lines.some(l => prices(l).length > 0 || SHADE_RE.test(l) || /^(size|item|sku|qty)\b/i.test(l))
+
 /** `fullText` (optional) is unfiltered OCR text, used only to detect the store. */
 export function parseReceipt(text: string, fullText = text): ParsedReceipt {
   const lines = text.split(/\r?\n/).map(clean).filter(Boolean)
@@ -267,6 +335,15 @@ export function parseReceipt(text: string, fullText = text): ParsedReceipt {
   // Cut off everything after the order totals
   const end = lines.findIndex(l => TOTALS.test(l))
   const body = end >= 0 ? lines.slice(0, end) : lines
+
+  // A plain list, one product per line (or separated by commas): "mac lipstick ruby woo, ysl lipstick 416"
+  if (looksLikeList(body)) {
+    const items = body
+      .flatMap(l => l.split(/\s*[,;，；、]\s*/))
+      .map(parseListLine)
+      .filter((d): d is DraftItem => d !== null && !!(d.brand || d.name))
+    return { channel, items }
+  }
 
   // Each product ends at its price line (plus a struck-through price right after it, if any)
   const blocks: string[][] = []
