@@ -62,14 +62,14 @@ export function guessCategory(text: string): string | null {
 }
 
 /** Lines that are never part of a product title */
-const NOISE = /^(shopping (cart|bag)|your (bag|cart|orders?)|my (bag|cart|orders?)|order details|wish ?list|loves\b|recently viewed|sub ?total|total|order total|estimated|est\.|tax|taxes|shipping|delivery|order\b|order #|qty|quantity|size\b|item\b|item #|sku|points|beauty insider|ultamate|rewards|delivered|arriving|shipped|out for|return|buy (it )?again|write a review|review|track|reorder|add to|sold by|ship(ped)? to|payment|visa|mastercard|amex|paypal|apple pay|promo|coupon|discount|you saved|savings|merchandise|items?\s*\(|view (order|details)|details|invoice|status|in stock|free\b|pickup|same-day|get it|edit|remove|save for later|move to|gift card|bag|basket|cart|checkout|summary|\d+ items?$)/i
+const NOISE = /^(shopping (cart|bag)|your (bag|cart|orders?)|my (bag|cart|orders?)|order ?details|order ?history|purchases|wish ?list|loves\b|recently viewed|sub ?total|total|order total|estimated|est\.|tax|taxes|shipping|delivery|order\b|order #|qty|quantity|size\b|item\b|item #|sku|points|beauty insider|ultamate|rewards|delivered|arriving|shipped|out for|return|buy (it )?again|write a review|review|track|reorder|add to|sold by|ship(ped)? to|payment|visa|mastercard|amex|paypal|apple pay|promo|coupon|discount|you saved|savings|merchandise|items?\s*\(|view (order|details)|details|invoice|status|in stock|free\b|pickup|same-day|get it|edit|remove|save for later|move to|gift card|bag|basket|cart|checkout|summary|\d+ items?$)/i
 
 /** Order totals: everything from here down is not a product */
 const TOTALS = /\b(sub ?total|order total|estimated total|order summary|grand total)\b|^(tax|taxes|total)\b/i
 
 const PRICE_RE = /\$\s?(\d{1,4}(?:,\d{3})*)(?:[.,:](\d{2}))?/g
 const SHADE_RE = /\b(?:colou?r|shade|tone|finish|color name)\s*[:：\-–]\s*(.+)$/i
-const SIZE_LIKE = /^\s*(\d+(\.\d+)?\s*(oz|fl\.? ?oz|ml|g|mg|count|ct|pcs?)\b|mini|full size|travel size|standard size)/i
+const SIZE_LIKE = /^\s*(\d+(\.\d+)?\s*(oz|fl\.? ?oz|ml|g|mg|count|ct|pcs?)\b|(mini|full|travel|standard|deluxe) size\b|mini$)/i
 
 const clean = (s: string) => s
   .replace(/[|•·]+\s*$/g, '')
@@ -140,41 +140,65 @@ function extractShade(line: string): string | null {
 const isMeta = (l: string) =>
   NOISE.test(l) || SIZE_LIKE.test(l) || /^[\d\s$.,:/#()-]+$/.test(l) || l.length < 2 || SHADE_RE.test(l)
 
-function draftFrom(block: string[], brandHit: { brand: string; rest: string } | null): DraftItem | null {
-  let brand = brandHit?.brand ?? null
-  let name: string | null = brandHit?.rest || null
+/** Lines that describe an item (so the title must be just above them) */
+const isDetail = (l: string) => SHADE_RE.test(l) || /^(size|item|sku)\b/i.test(l) || prices(l).length > 0
+
+const isTitle = (l: string) => !isMeta(l) && prices(l).length === 0 && /[A-Za-z]{2}/.test(l)
+
+/** "EADEM" → "Eadem", "MAKEUP BY MARIO" → "Makeup By Mario"; short all-caps names (MAC, NYX) stay as is */
+function prettyBrand(line: string): string {
+  if (line !== line.toUpperCase()) return line
+  return line.replace(/[A-Z][A-Z']+/g, w => (w.length <= 3 ? w : w[0] + w.slice(1).toLowerCase()))
+}
+
+function draftFrom(block: string[]): DraftItem | null {
   let shade: string | null = null
   const found: Amount[] = []
-
   for (const line of block) {
-    // stop at order totals
     if (TOTALS.test(line)) break
     shade ??= extractShade(line)
     found.push(...amounts(line))
   }
 
-  // Name: first real text line (skipping the brand line itself)
-  const textLines = block.filter((l, i) => !(i === 0 && brandHit) && !isMeta(l) && prices(l).length === 0)
-  if (brandHit) {
-    // Long titles wrap onto several lines: join consecutive title lines until a size/color/price line
-    const parts = brandHit.rest ? [brandHit.rest] : []
-    for (const l of block.slice(1)) {
-      if (isMeta(l) || prices(l).length || parts.length >= 3) break
-      parts.push(l)
+  // Title = the group of consecutive text lines (brand + product name, which may wrap) right before the
+  // item's details. Earlier groups are page chrome (status bar, "Your Bag", store logo…).
+  const firstDetail = block.findIndex(isDetail)
+  const scope = firstDetail >= 0 ? block.slice(0, firstDetail) : block
+  const groups: string[][] = []
+  scope.forEach((l, i) => {
+    if (!isTitle(l)) return
+    if (i > 0 && isTitle(scope[i - 1])) groups[groups.length - 1].push(l)
+    else groups.push([l])
+  })
+  let title = groups.pop() ?? block.filter(isTitle).slice(0, 1)
+  // A page header that OCR glued onto the first item ("Orderdetails", "EADEM", "Le Chouchou…"):
+  // start the title at the last known-brand or ALL-CAPS short line that still leaves a product name below it
+  if (title.length >= 3) {
+    for (let i = title.length - 2; i >= 1; i--) {
+      const l = title[i]
+      if (matchBrand(l) || (l === l.toUpperCase() && /[A-Z]{2}/.test(l) && l.split(' ').length <= 4)) { title = title.slice(i); break }
     }
-    name = parts.join(' ').replace(/,\s*$/, '') || null
-  } else if (!name) {
-    name = textLines[0] ?? null
   }
+  title = title.slice(0, 4)
+  if (!title.length) return null
 
-  // No brand from the list: an ALL-CAPS short first line is usually the brand (Sephora style)
-  if (!brand && textLines.length >= 2) {
-    const first = textLines[0]
-    if (first === first.toUpperCase() && /[A-Z]/.test(first) && first.split(' ').length <= 4) {
-      brand = first.replace(/\b([A-Z])([A-Z']+)\b/g, (_, a, b) => a + b.toLowerCase())
-      name = textLines[1]
-    }
+  let brand: string | null = null
+  let name: string | null = null
+  const hit = matchBrand(title[0])
+  if (hit && hit.rest && !/^by\b/i.test(hit.rest)) {
+    // brand and product on one line: "Maybelline New York SuperStay …"
+    brand = hit.brand
+    name = [hit.rest, ...title.slice(1, 3)].join(' ')
+  } else if (title.length >= 2) {
+    // brand on its own line, product below (Sephora, Ulta, most stores)
+    brand = hit && !hit.rest ? hit.brand : prettyBrand(title[0])
+    name = title.slice(1, 4).join(' ')
+  } else if (hit) {
+    brand = hit.rest ? title[0] : hit.brand // "ONE/SIZE by Patrick Starrr" alone on a line → that's the brand
+  } else {
+    name = title[0]
   }
+  name = name?.replace(/,\s*$/, '') || null
 
   // Amazon style: "Brand Product Name, Shade, 0.17 fl oz"
   if (name && !shade && name.includes(',')) {
@@ -199,43 +223,57 @@ function draftFrom(block: string[], brandHit: { brand: string; rest: string } | 
   }
 }
 
-export function parseReceipt(text: string): ParsedReceipt {
+/** If a block holds several known-brand title lines (items without prices), split it at each of them */
+function splitAtBrands(block: string[]): string[][] {
+  const cuts = block
+    .map((l, i) => (i > 0 && isTitle(l) && !isTitle(block[i - 1]) && matchBrand(l) ? i : -1))
+    .filter(i => i > 0)
+  if (!cuts.length) return [block]
+  const out: string[][] = []
+  let from = 0
+  for (const c of cuts) { out.push(block.slice(from, c)); from = c }
+  out.push(block.slice(from))
+  return out
+}
+
+const isPriceLine = (l: string) => prices(l).length > 0 && !NOISE.test(l) && !TOTALS.test(l)
+/** A second price right below the first: struck-through original, or "List: $12.99" / "Was $25" */
+const isPriceOnly = (l: string) =>
+  prices(l).length > 0 && (/^[\s$\d.,:]+$/.test(l) || /^(list|was|reg\.?|regular|original|compare at|msrp|retail)\b/i.test(l))
+
+/** `fullText` (optional) is unfiltered OCR text, used only to detect the store. */
+export function parseReceipt(text: string, fullText = text): ParsedReceipt {
   const lines = text.split(/\r?\n/).map(clean).filter(Boolean)
-  const channel = CHANNELS.find(([re]) => re.test(text))?.[1] ?? null
+  const all = `${fullText}\n${text}`
+  const channel = CHANNELS.find(([re]) => re.test(all))?.[1]
+    // Sephora's app never prints its own name on order pages, but these are tell-tale
+    ?? (/add to basket|beauty insider/i.test(all) || /\bITEM \d{7}\b/.test(all) ? 'Sephora' : null)
 
   // Cut off everything after the order totals
   const end = lines.findIndex(l => TOTALS.test(l))
   const body = end >= 0 ? lines.slice(0, end) : lines
 
-  const items: DraftItem[] = []
-
-  // 1) Split on lines that start with a known brand
-  const starts: { i: number; hit: { brand: string; rest: string } }[] = []
-  body.forEach((l, i) => { const hit = matchBrand(l); if (hit) starts.push({ i, hit }) })
-
-  if (starts.length) {
-    starts.forEach((s, k) => {
-      const block = body.slice(s.i, k + 1 < starts.length ? starts[k + 1].i : body.length)
-      const d = draftFrom(block, s.hit)
-      if (d) items.push(d)
-    })
-    return { channel, items }
+  // Each product ends at its price line (plus a struck-through price right after it, if any)
+  const blocks: string[][] = []
+  let from = 0
+  for (let i = 0; i < body.length; i++) {
+    if (!isPriceLine(body[i])) continue
+    let j = i
+    while (j + 1 < body.length && isPriceOnly(body[j + 1])) j++
+    blocks.push(body.slice(from, j + 1))
+    from = j + 1
+    i = j
   }
+  const tail = body.slice(from)
+  // A product cut off at the bottom of the screenshot (no price) still counts if it has a color/size line
+  if (!blocks.length || tail.some(l => SHADE_RE.test(l) || /^size\b/i.test(l))) blocks.push(tail)
 
-  // 2) No known brands: each product block ends at a line with a price
-  let blockStart = 0
-  body.forEach((l, i) => {
-    if (prices(l).length && !NOISE.test(l)) {
-      // include following price-only lines (e.g. struck-through original price) in this block
-      let j = i
-      while (j + 1 < body.length && /^[\s$\d.,:]+$/.test(body[j + 1]) && prices(body[j + 1]).length) j++
-      const block = body.slice(blockStart, j + 1)
-      if (block.some(x => !isMeta(x) && prices(x).length === 0)) {
-        const d = draftFrom(block, null)
-        if (d) items.push(d)
-      }
-      blockStart = j + 1
-    }
-  })
+  const items = blocks
+    .flatMap(splitAtBrands)
+    // drop header-only pieces ("ULTA BEAUTY / Your Bag (2)") that have no color/size/price at all
+    .filter((b, _, all) => all.length === 1 || b.some(isDetail))
+    .map(draftFrom)
+    .filter((d): d is DraftItem => d !== null)
+
   return { channel, items }
 }

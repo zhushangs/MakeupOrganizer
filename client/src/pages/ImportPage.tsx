@@ -55,8 +55,8 @@ export default function ImportPage({ onSaved }: { onSaved: (firstCategory: strin
     for (let i = 0; i < list.length; i++) {
       const shot = added[i]
       try {
-        const text = await recognizeText(list[i], p => patchShot(shot.key, { progress: p }))
-        const parsed = parseReceipt(text)
+        const { text, raw } = await recognizeText(list[i], p => patchShot(shot.key, { progress: p }))
+        const parsed = parseReceipt(text, raw)
         setRows(r => [...r, ...parsed.items.map(it => ({
           key: nextKey++, include: true,
           category: it.category, brand: it.brand ?? '', name: it.name ?? '', shadeName: it.shadeName ?? '',
