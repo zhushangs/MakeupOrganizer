@@ -2,6 +2,13 @@
 
 A small web app for cataloging makeup. Add an item (brand, product, shade, where you bought it, original and paid price, notes), then pick a picture from an online image search. A color card is generated from the picture automatically, and you can fine-tune it with an eyedropper or color picker. Each category can be viewed as one color chart, and both single cards and charts can be saved as images.
 
+## Two ways to run it
+
+- **On Cloudflare (recommended):** always on, works anywhere, nothing to start. See [Hosting on Cloudflare](#hosting-on-cloudflare).
+- **On your PC:** `start.bat` runs the ASP.NET Core version on your Wi-Fi.
+
+Both serve the same frontend and the same API; only the backend differs (`worker/` = Cloudflare, `server/` = ASP.NET Core).
+
 ## Structure
 
 ```
@@ -10,6 +17,7 @@ server/MakeupOrganizer.Api   ASP.NET Core (.NET 8) backend, no NuGet dependencie
   ├─ data/                   Created on first run: products.json + images/
   └─ appsettings.Local.json  Your Serper API key (you create this; git-ignored)
 client/                      React + Vite frontend source (only needed to change the UI)
+worker/                      Cloudflare Worker backend (TypeScript): D1 database + R2 pictures
 start.bat                    Double-click to start
 ```
 
@@ -66,3 +74,45 @@ npm run build    # builds into server/MakeupOrganizer.Api/wwwroot
 ## Backup
 
 All data lives in `server/MakeupOrganizer.Api/data/`. Copying that folder is a full backup.
+
+## Hosting on Cloudflare
+
+Everything runs on Cloudflare's free tier: the Worker serves the app and the API, **D1** stores items and settings, **R2** stores pictures.
+
+### One-time setup (on your PC, needs Node.js 18+)
+
+1. Create a free account at https://dash.cloudflare.com.
+2. In the dashboard open **R2 Object Storage** and click **Get started** once to enable R2 (the free tier includes 10 GB; Cloudflare may ask for a payment method but doesn't charge within the free tier).
+3. In a terminal:
+   ```
+   cd worker
+   npm install
+   npx wrangler login        # opens the browser to authorize
+   npm run setup             # creates the database + bucket, builds and deploys
+   npm run migrate-data      # copies your existing items, settings and pictures from server/MakeupOrganizer.Api/data
+   ```
+   `setup` prints the address, e.g. `https://makeup-organizer.<your-subdomain>.workers.dev`. If `appsettings.Local.json` has your Serper key, it's copied to the Worker automatically; otherwise run `npx wrangler secret put SERPER_API_KEY`.
+4. Open the address on your phone and **Add to Home Screen**.
+
+### Lock it with Cloudflare Access (email login)
+
+Without this, anyone who finds the address could see and change your data.
+
+1. Dashboard → **Workers & Pages** → **makeup-organizer** → **Settings** → **Domains & Routes**.
+2. Next to `workers.dev`, click **Enable Cloudflare Access**.
+3. Click **Manage Cloudflare Access** and make sure the policy allows only your email address.
+
+Opening the app now asks for your email and sends a one-time code; you stay signed in on that device for a while.
+
+### Updating after code changes
+
+```
+cd worker
+npm run deploy
+```
+
+### Notes
+
+- `npm run dev` in `worker/` runs the Cloudflare version locally (with a local database) for testing.
+- Pictures that were downloaded or uploaded but never saved to an item are cleaned up daily (cron trigger).
+- After moving to Cloudflare, `start.bat` still works but uses its own separate local data; edits don't sync between the two.

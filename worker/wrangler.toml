@@ -1,0 +1,26 @@
+# Cloudflare Worker that hosts the whole app: the built frontend (static assets) + the /api backend.
+# `npm run setup` fills in database_id; see README "Hosting on Cloudflare".
+name = "makeup-organizer"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+[assets]
+# the same build output the ASP.NET Core version serves
+directory = "../server/MakeupOrganizer.Api/wwwroot"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/images/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "makeup-organizer"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "makeup-organizer-images"
+
+# daily cleanup of pictures that were downloaded/uploaded but never saved to an item
+[triggers]
+crons = ["17 9 * * *"]

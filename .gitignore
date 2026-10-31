@@ -6,3 +6,5 @@ server/MakeupOrganizer.Api/appsettings.Local.json
 .vs/
 *.user
 client/public/ocr/
+worker/.wrangler/
+worker/.dev.vars
