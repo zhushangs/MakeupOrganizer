@@ -110,7 +110,8 @@ export default function SettingsPage({ items, settings, onSave }: {
                   )}
                 </div>
                 {c.multi && expanded === c.key && (
-                  <PaletteLayout rows={c.defaultRows} cols={c.defaultCols} onChange={(r, col) => patch(c.key, { defaultRows: r, defaultCols: col })} />
+                  <PaletteLayout allowCustom={false} value={{ gridRows: c.defaultRows, gridCols: c.defaultCols }}
+                    onChange={s => patch(c.key, { defaultRows: s.gridRows, defaultCols: s.gridCols })} />
                 )}
               </div>
             )

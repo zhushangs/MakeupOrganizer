@@ -1,5 +1,6 @@
 import { categoryOf, type Product } from './types'
 import { isDark } from './color'
+import { isMulti, panRects } from './layout'
 
 /** Color cards drawn on a canvas so they can be saved as PNG. */
 
@@ -33,8 +34,7 @@ function drawSwatch(ctx: CanvasRenderingContext2D, p: Product, x: number, y: num
   ctx.save()
   roundRect(ctx, x, y, w, h, r)
   ctx.clip()
-  const cells = p.gridRows * p.gridCols
-  if (cells <= 1) {
+  if (!isMulti(p)) {
     ctx.fillStyle = p.swatches[0]?.hex ?? EMPTY
     ctx.fillRect(x, y, w, h)
   } else {
@@ -43,11 +43,10 @@ function drawSwatch(ctx: CanvasRenderingContext2D, p: Product, x: number, y: num
     ctx.fillRect(x, y, w, h)
     const cw = (w - gap * (p.gridCols - 1)) / p.gridCols
     const ch = (h - gap * (p.gridRows - 1)) / p.gridRows
-    p.swatches.forEach((s, i) => {
-      const cx = x + (i % p.gridCols) * (cw + gap)
-      const cy = y + Math.floor(i / p.gridCols) * (ch + gap)
-      ctx.fillStyle = s.hex ?? EMPTY
-      ctx.fillRect(cx, cy, cw, ch)
+    // pans can span several cells (layout); draw each pan over its whole area
+    panRects(p).forEach((r, i) => {
+      ctx.fillStyle = p.swatches[i]?.hex ?? EMPTY
+      ctx.fillRect(x + r.c * (cw + gap), y + r.r * (ch + gap), r.cs * cw + (r.cs - 1) * gap, r.rs * ch + (r.rs - 1) * gap)
     })
   }
   ctx.restore()
@@ -71,7 +70,7 @@ export function renderProductCard(p: Product): string {
   ctx.fillStyle = BG
   ctx.fillRect(0, 0, W, H)
 
-  const multi = p.gridRows * p.gridCols > 1
+  const multi = isMulti(p)
   const sw = W - pad * 2
   const sh = multi ? Math.min(820, (sw / p.gridCols) * p.gridRows) : 820
   drawSwatch(ctx, p, pad, pad, sw, sh, 36)
@@ -138,13 +137,13 @@ export function renderChart(title: string, items: Product[]): string {
   ctx.fillStyle = INK3
   ctx.font = `500 28px ${FONT}`
   const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-  const noun = items.some(p => p.gridRows * p.gridCols > 1) ? 'item' : 'shade'
+  const noun = items.some(isMulti) ? 'item' : 'shade'
   ctx.fillText(`${items.length} ${noun}${items.length === 1 ? '' : 's'} · ${date}`, pad, pad + 108)
 
   items.forEach((p, i) => {
     const x = pad + (i % cols) * (cell + gap)
     const y = pad + headH + Math.floor(i / cols) * (cell + textH + gap)
-    const multi = p.gridRows * p.gridCols > 1
+    const multi = isMulti(p)
     const h = multi ? Math.min(cell, (cell / p.gridCols) * p.gridRows) : cell
     drawSwatch(ctx, p, x, y + (cell - h), cell, h, 18)
     ctx.fillStyle = INK

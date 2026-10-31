@@ -30,7 +30,12 @@ public class Product
 
     public int GridRows { get; set; } = 1;
     public int GridCols { get; set; } = 1;
-    /// <summary>Row-major order; length = GridRows * GridCols</summary>
+    /// <summary>
+    /// Optional: which pan each grid cell belongs to (row-major, length GridRows * GridCols), so a pan can
+    /// span several cells. Pans are numbered 0..n-1 in reading order. Null = one pan per cell.
+    /// </summary>
+    public List<int>? Layout { get; set; }
+    /// <summary>One per pan, in reading order</summary>
     public List<Swatch> Swatches { get; set; } = new();
 
     /// <summary>Free-form notes / how it wears</summary>

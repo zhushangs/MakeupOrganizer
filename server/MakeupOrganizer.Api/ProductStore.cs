@@ -97,7 +97,8 @@ public class ProductStore
     {
         p.GridRows = Math.Clamp(p.GridRows, 1, 10);
         p.GridCols = Math.Clamp(p.GridCols, 1, 10);
-        var n = p.GridRows * p.GridCols;
+        p.Layout = ValidLayout(p.GridRows, p.GridCols, p.Layout);
+        var n = p.Layout is null ? p.GridRows * p.GridCols : p.Layout.Max() + 1;
         p.Swatches ??= new();
         if (p.Swatches.Count > n) p.Swatches = p.Swatches.Take(n).ToList();
         while (p.Swatches.Count < n) p.Swatches.Add(new Swatch());
@@ -111,6 +112,31 @@ public class ProductStore
         p.Name = p.Name?.Trim() ?? "";
         p.ShadeName = string.IsNullOrWhiteSpace(p.ShadeName) ? null : p.ShadeName.Trim();
         p.Channel = string.IsNullOrWhiteSpace(p.Channel) ? null : p.Channel.Trim();
+    }
+
+    /// <summary>
+    /// Keep a layout only if it's well-formed: right length, pans numbered 0..n-1 in reading order,
+    /// and every pan a filled rectangle. Returns null for invalid layouts or one-pan-per-cell.
+    /// </summary>
+    private static List<int>? ValidLayout(int rows, int cols, List<int>? layout)
+    {
+        if (layout is null || layout.Count != rows * cols) return null;
+        var next = 0;
+        var seen = new Dictionary<int, (int r0, int c0, int r1, int c1, int count)>();
+        for (var i = 0; i < layout.Count; i++)
+        {
+            var pan = layout[i];
+            int r = i / cols, c = i % cols;
+            if (!seen.TryGetValue(pan, out var b))
+            {
+                if (pan != next++) return null; // must be numbered in reading order
+                seen[pan] = (r, c, r, c, 1);
+            }
+            else seen[pan] = (Math.Min(b.r0, r), Math.Min(b.c0, c), Math.Max(b.r1, r), Math.Max(b.c1, c), b.count + 1);
+        }
+        foreach (var b in seen.Values)
+            if ((b.r1 - b.r0 + 1) * (b.c1 - b.c0 + 1) != b.count) return null; // not a rectangle
+        return seen.Count == layout.Count ? null : layout;
     }
 
     private async Task SaveAsync()

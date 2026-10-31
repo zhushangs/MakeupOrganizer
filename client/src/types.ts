@@ -17,6 +17,8 @@ export interface Product {
   currency?: string | null
   gridRows: number
   gridCols: number
+  /** which pan each grid cell belongs to (pans spanning several cells); null = one pan per cell */
+  layout?: number[] | null
   swatches: Swatch[]
   notes?: string | null
   createdAt: string

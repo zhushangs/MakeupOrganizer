@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getCategories, type Product } from '../types'
 import { hueSortKey } from '../color'
 import PaletteGrid from '../components/PaletteGrid'
+import { isMulti } from '../layout'
 import DetailSheet from '../components/DetailSheet'
 import Sheet from '../components/Sheet'
 import { go } from '../App'
@@ -53,7 +54,7 @@ export default function ListPage({ items, error, category, openItem, onChanged }
     <div className="app">
       <header className="top">
         <div className="title-row">
-          <h1 className="title">Vanity{total > 0 && <small>{total} items</small>}</h1>
+          <h1 className="title">Vanity{total > 0 && <small>{total} {total === 1 ? "item" : "items"}</small>}</h1>
           <span className="spacer" />
           {(cat === 'all' ? total : counts[cat] ?? 0) > 0 && (
             <button className="link-btn" onClick={() => go(`/chart?c=${cat}`)}>View all as chart</button>
@@ -97,7 +98,7 @@ export default function ListPage({ items, error, category, openItem, onChanged }
       {visible.length > 0 && (
         <div className="cards">
           {visible.map(p => {
-            const multi = p.gridRows * p.gridCols > 1
+            const multi = isMulti(p)
             const hex = p.swatches[0]?.hex
             return (
               <button key={p.id} className="item-card" onClick={() => setOpenId(p.id)}

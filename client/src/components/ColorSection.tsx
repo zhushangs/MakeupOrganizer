@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { dominantColor, isDark } from '../color'
 import type { Swatch } from '../types'
+import { isMulti, panCount, reshapeSwatches, type Shape } from '../layout'
+import PanGrid from './PanGrid'
 import ColorEditor from './ColorEditor'
 import PaletteLayout from './PaletteLayout'
 
-export interface ColorValue {
-  gridRows: number
-  gridCols: number
+export interface ColorValue extends Shape {
   swatches: Swatch[]
 }
 
@@ -27,13 +27,13 @@ export default function ColorSection({ value, imagePath, showLayout, onChange }:
   onChange: (v: ColorValue) => void
 }) {
   const [sel, setSel] = useState(0)
-  const cells = value.gridRows * value.gridCols
-  const multi = cells > 1
+  const cells = panCount(value)
+  const multi = isMulti(value)
   const cur = Math.min(sel, cells - 1)
 
-  const setGrid = (rows: number, cols: number) => {
-    onChange({ gridRows: rows, gridCols: cols, swatches: resizeSwatches(value.swatches, value.gridCols, rows, cols) })
-    setSel(s => Math.min(s, rows * cols - 1))
+  const setShape = (shape: Shape) => {
+    onChange({ ...shape, layout: shape.layout ?? null, swatches: reshapeSwatches(value, value.swatches, shape) })
+    setSel(0)
   }
   const patchCell = (i: number, patch: Swatch) =>
     onChange({ ...value, swatches: value.swatches.map((s, j) => (j === i ? { ...s, ...patch } : s)) })
@@ -42,18 +42,21 @@ export default function ColorSection({ value, imagePath, showLayout, onChange }:
 
   return (
     <>
-      {(showLayout || multi) && <PaletteLayout rows={value.gridRows} cols={value.gridCols} onChange={setGrid} />}
+      {(showLayout || multi) && <PaletteLayout value={value} onChange={setShape} />}
 
       {multi && (
-        <div className="edit-grid" style={{ gridTemplateColumns: `repeat(${value.gridCols}, 1fr)` }}>
-          {value.swatches.map((s, i) => (
-            <button key={i} type="button" className={'edit-cell' + (i === cur ? ' sel' : '')}
-              style={{ background: s.hex ?? undefined, color: isDark(s.hex) ? '#fff' : '#2a2321' }}
-              onClick={() => setSel(i)}>
-              <span className="i">{i + 1}</span>
-            </button>
-          ))}
-        </div>
+        <PanGrid shape={value} className="edit-grid">
+          {i => {
+            const s = value.swatches[i] ?? {}
+            return (
+              <button type="button" className={'edit-cell' + (i === cur ? ' sel' : '')}
+                style={{ background: s.hex ?? undefined, color: isDark(s.hex) ? '#fff' : '#2a2321' }}
+                onClick={() => setSel(i)}>
+                <span className="i">{i + 1}</span>
+              </button>
+            )
+          }}
+        </PanGrid>
       )}
 
       {multi && (

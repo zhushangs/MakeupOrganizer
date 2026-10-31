@@ -105,7 +105,7 @@ export default function ImportPage({ items, brands, onSaved }: {
         const body: ProductInput = {
           category: c.key, brand: r.brand.trim(), name: r.name.trim(), shadeName: r.shadeName.trim() || null,
           channel: r.channel.trim() || null, originalPrice: num(r.original), paidPrice: num(r.paid), currency: 'USD',
-          imagePath: null, gridRows: c.defaultRows, gridCols: c.defaultCols,
+          imagePath: null, gridRows: c.defaultRows, gridCols: c.defaultCols, layout: null,
           swatches: Array.from({ length: c.defaultRows * c.defaultCols }, () => ({})), notes: null,
         }
         await api.create(body)

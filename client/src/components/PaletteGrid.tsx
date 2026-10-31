@@ -1,12 +1,11 @@
 import type { Product } from '../types'
+import PanGrid from './PanGrid'
 
-/** Mini palette grid shown in the list */
+/** Mini palette shown on home cards and thumbnails */
 export default function PaletteGrid({ p }: { p: Product }) {
   return (
-    <div className="pgrid" style={{ gridTemplateColumns: `repeat(${p.gridCols}, 1fr)` }}>
-      {p.swatches.map((s, i) => (
-        <div key={i} className="pcell" style={s.hex ? { background: s.hex } : undefined} />
-      ))}
-    </div>
+    <PanGrid shape={p} className="pgrid">
+      {i => <div className="pcell" style={p.swatches[i]?.hex ? { background: p.swatches[i].hex! } : undefined} />}
+    </PanGrid>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api, shrinkImage } from '../api'
 import { dominantColor, loadImage } from '../color'
 import ColorSection from '../components/ColorSection'
+import { isMulti } from '../layout'
 import SwatchCard from '../components/SwatchCard'
 import { categoryOf, type ImageSearchHit, type Product } from '../types'
 import { go } from '../App'
@@ -49,7 +50,7 @@ export default function ImagePage({ product, isNew, onDone }: {
     // Make sure the browser can actually display it before moving on
     try { await loadImage(path) }
     catch { throw new Error("This picture can't be displayed. Please choose a different one.") }
-    const single = draft.gridRows * draft.gridCols === 1
+    const single = !isMulti(draft)
     const color = single ? await dominantColor(path).catch(() => null) : null
     setDraft(d => ({ ...d, imagePath: path, swatches: color ? [{ ...d.swatches[0], hex: color }] : d.swatches }))
     setStage('color')

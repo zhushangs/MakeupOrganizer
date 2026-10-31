@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
 import { api, shrinkImage } from '../api'
 import { dominantColor } from '../color'
-import ColorSection, { resizeSwatches } from '../components/ColorSection'
+import ColorSection from '../components/ColorSection'
+import { isMulti, reshapeSwatches, type Shape } from '../layout'
 import DuplicateSheet from '../components/DuplicateSheet'
 import PaletteLayout from '../components/PaletteLayout'
 import { findDuplicate } from '../dup'
@@ -76,15 +77,16 @@ export default function EditPage({ items, brands, settings, onSaveSettings, exis
   const setCategory = (key: string) => {
     const c = categoryOf(key)
     setF(prev => {
-      let { gridRows, gridCols, swatches } = prev
-      if (c.multi && gridRows * gridCols === 1) {
-        gridRows = c.defaultRows; gridCols = c.defaultCols
-        swatches = resizeSwatches(swatches, prev.gridCols, gridRows, gridCols)
-      } else if (!c.multi && gridRows * gridCols > 1 && swatches.filter(s => s.hex).length <= 1) {
-        gridRows = 1; gridCols = 1
+      let shape: Shape = prev
+      let swatches = prev.swatches
+      if (c.multi && !isMulti(prev)) {
+        shape = { gridRows: c.defaultRows, gridCols: c.defaultCols, layout: null }
+        swatches = reshapeSwatches(prev, prev.swatches, shape)
+      } else if (!c.multi && isMulti(prev) && swatches.filter(s => s.hex).length <= 1) {
+        shape = { gridRows: 1, gridCols: 1, layout: null }
         swatches = [swatches.find(s => s.hex) ?? {}]
       }
-      return { ...prev, category: c.key, gridRows, gridCols, swatches }
+      return { ...prev, category: c.key, gridRows: shape.gridRows, gridCols: shape.gridCols, layout: shape.layout ?? null, swatches }
     })
   }
 
@@ -93,7 +95,7 @@ export default function EditPage({ items, brands, settings, onSaveSettings, exis
     setUploading(true); setError(null)
     try {
       const path = await api.uploadImage(await shrinkImage(file), file.name.replace(/\.\w+$/, '') + '.jpg')
-      const single = f.gridRows * f.gridCols === 1
+      const single = !isMulti(f)
       const color = single ? await dominantColor(path).catch(() => null) : null
       setF(prev => ({ ...prev, imagePath: path, swatches: color ? [{ ...prev.swatches[0], hex: color }] : prev.swatches }))
     } catch (e) {
@@ -161,7 +163,7 @@ export default function EditPage({ items, brands, settings, onSaveSettings, exis
             <datalist id="brand-list">{brands.map(b => <option key={b} value={b} />)}</datalist></div>
           <div className="field"><label>Product name</label>
             <input className="input" value={f.name} onChange={e => set('name', e.target.value)} placeholder="Matte Lipstick" autoCapitalize="words" /></div>
-          <div className="field"><label>{f.gridRows * f.gridCols > 1 ? 'Palette / shade name' : 'Shade'}</label>
+          <div className="field"><label>{isMulti(f) ? 'Palette / shade name' : 'Shade'}</label>
             <input className="input" value={f.shadeName ?? ''} onChange={e => set('shadeName', e.target.value)} placeholder="Ruby Woo" autoCapitalize="words" /></div>
           {dup && (
             <div className="warn dup-hint">
@@ -171,11 +173,11 @@ export default function EditPage({ items, brands, settings, onSaveSettings, exis
           )}
         </div>
 
-        {!existing && (categoryOf(f.category).multi || f.gridRows * f.gridCols > 1) && (
+        {!existing && (categoryOf(f.category).multi || isMulti(f)) && (
           <div className="card">
             <h3>Palette layout<span className="opt">match the real pans</span></h3>
-            <PaletteLayout rows={f.gridRows} cols={f.gridCols}
-              onChange={(r, c) => setF(prev => ({ ...prev, gridRows: r, gridCols: c, swatches: resizeSwatches(prev.swatches, prev.gridCols, r, c) }))} />
+            <PaletteLayout value={f}
+              onChange={shape => setF(prev => ({ ...prev, ...shape, layout: shape.layout ?? null, swatches: reshapeSwatches(prev, prev.swatches, shape) }))} />
           </div>
         )}
 
