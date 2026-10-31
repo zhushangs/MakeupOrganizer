@@ -4,6 +4,9 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Secrets (the Serper API key) live in appsettings.Local.json, which is git-ignored
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 // Data folder: defaults to data/ under the project folder; change "DataDir" in appsettings.json
 var dataDir = builder.Configuration["DataDir"] is { Length: > 0 } d
     ? Path.GetFullPath(d, builder.Environment.ContentRootPath)
@@ -14,7 +17,7 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
 });
 
-builder.Services.AddHttpClient("scraper", c =>
+builder.Services.AddHttpClient("web", c =>
 {
     c.Timeout = TimeSpan.FromSeconds(20);
     c.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent",
@@ -32,7 +35,7 @@ builder.Services.AddHttpClient("scraper", c =>
 builder.Services.AddSingleton(new ProductStore(dataDir));
 builder.Services.AddSingleton(sp => new ImageService(dataDir,
     sp.GetRequiredService<IHttpClientFactory>(), sp.GetRequiredService<ILogger<ImageService>>()));
-builder.Services.AddSingleton<Scraper>();
+builder.Services.AddSingleton<ImageSearchService>();
 
 // During development the frontend runs on Vite (5173), so allow CORS
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
@@ -70,7 +73,7 @@ api.MapPut("/products/{id}", async (string id, Product p, ProductStore s, ImageS
 {
     var old = await s.GetAsync(id);
     if (old is null) return Results.NotFound();
-    var oldImages = new[] { old.ImagePath, old.SwatchImagePath };
+    var oldImages = new[] { old.ImagePath };
     var updated = await s.UpdateAsync(id, p);
     // If the image was replaced, delete the old one when nothing else uses it
     foreach (var path in oldImages)
@@ -82,7 +85,7 @@ api.MapDelete("/products/{id}", async (string id, ProductStore s, ImageService i
 {
     var removed = await s.DeleteAsync(id);
     if (removed is null) return Results.NotFound();
-    foreach (var path in new[] { removed.ImagePath, removed.SwatchImagePath })
+    foreach (var path in new[] { removed.ImagePath })
         if (path is not null && !s.IsImageReferenced(path)) img.TryDelete(path);
     return Results.NoContent();
 });
@@ -95,13 +98,31 @@ api.MapPost("/images", async (IFormFile file, ImageService img) =>
     return path is null ? Results.BadRequest(new { error = "Unsupported image format" }) : Results.Ok(new { path });
 }).DisableAntiforgery();
 
-api.MapPost("/scrape", async (ScrapeRequest req, Scraper scraper, CancellationToken ct) =>
-    Results.Ok(await scraper.ScrapeAsync(req.Url, ct)));
+api.MapGet("/image-search/status", (ImageSearchService search) => Results.Ok(new { configured = search.IsConfigured }));
+
+api.MapPost("/image-search", async (ImageSearchRequest req, ImageSearchService search, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(req.Query)) return Results.BadRequest(new { error = "Enter something to search for" });
+    try { return Results.Ok(await search.SearchAsync(req.Query.Trim(), ct)); }
+    catch (ImageSearchException ex) { return Results.BadRequest(new { error = ex.Message }); }
+});
+
+// Download a picked search result to local storage (falls back to the thumbnail if the site blocks it)
+api.MapPost("/images/from-url", async (ImageFromUrlRequest req, ImageService img, CancellationToken ct) =>
+{
+    foreach (var url in new[] { req.Url, req.FallbackUrl })
+    {
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var u) || (u.Scheme != "http" && u.Scheme != "https"))
+            continue;
+        if (await img.DownloadAsync(url, null, ct) is { } path) return Results.Ok(new { path });
+    }
+    return Results.BadRequest(new { error = "Couldn't download that image. Try another one." });
+});
 
 // SPA fallback
 app.MapFallbackToFile("index.html");
 
-// Startup cleanup: images that were scraped or uploaded but never saved (older than 1 day, not referenced)
+// Startup cleanup: images that were downloaded or uploaded but never saved (older than 1 day, not referenced)
 {
     var store = app.Services.GetRequiredService<ProductStore>();
     foreach (var f in Directory.EnumerateFiles(images.ImagesDir))

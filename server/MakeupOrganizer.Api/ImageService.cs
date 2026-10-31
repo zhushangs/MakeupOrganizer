@@ -41,12 +41,12 @@ public class ImageService
         return "/images/" + name;
     }
 
-    /// <summary>Download a remote image locally; returns null on failure (no exception, so scraping continues).</summary>
+    /// <summary>Download a remote image locally; returns null on failure (never throws).</summary>
     public async Task<string?> DownloadAsync(string url, string? referer, CancellationToken ct = default)
     {
         try
         {
-            var client = _http.CreateClient("scraper");
+            var client = _http.CreateClient("web");
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
             req.Headers.TryAddWithoutValidation("Accept", "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8");
             if (referer is not null) req.Headers.Referrer = new Uri(referer);

@@ -3,7 +3,6 @@ import { CATEGORIES, type Product } from '../types'
 import { hueSortKey } from '../color'
 import PaletteGrid from '../components/PaletteGrid'
 import DetailSheet from '../components/DetailSheet'
-import Sheet from '../components/Sheet'
 import { go } from '../App'
 
 type Sort = 'hue' | 'new' | 'brand'
@@ -28,9 +27,7 @@ export default function ListPage({ items, error, category, onChanged }: {
   const cat = category ?? CATEGORIES.find(c => counts[c.key])?.key ?? 'lipstick'
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<Sort>(() => (store.get('sort') as Sort) || 'hue')
-  const [labels, setLabels] = useState(() => store.get('labels') === '1')
   const [openId, setOpenId] = useState<string | null>(null)
-  const [adding, setAdding] = useState(false)
 
   const visible = useMemo(() => {
     const kw = q.trim().toLowerCase()
@@ -44,8 +41,6 @@ export default function ListPage({ items, error, category, onChanged }: {
     return sorted
   }, [items, cat, q, sort])
 
-  const singles = visible.filter(p => p.gridRows * p.gridCols === 1)
-  const palettes = visible.filter(p => p.gridRows * p.gridCols > 1)
   const open = items?.find(p => p.id === openId)
   const total = items?.length ?? 0
 
@@ -54,9 +49,9 @@ export default function ListPage({ items, error, category, onChanged }: {
       <header className="top">
         <div className="title-row">
           <h1 className="title">Vanity{total > 0 && <small>{total} items</small>}</h1>
-          <button className="link-btn" onClick={() => { setLabels(!labels); store.set('labels', labels ? '0' : '1') }}>
-            {labels ? 'Hide names' : 'Show names'}
-          </button>
+          {(counts[cat] ?? 0) > 0 && (
+            <button className="link-btn" onClick={() => go(`/chart?c=${cat}`)}>View all as chart</button>
+          )}
         </div>
         <nav className="chips">
           {CATEGORIES.map(c => (
@@ -84,64 +79,39 @@ export default function ListPage({ items, error, category, onChanged }: {
         </div>
       )}
 
-      {singles.length > 0 && (
-        <>
-          {palettes.length > 0 && <div className="section-label">Singles</div>}
-          <div className={'wall' + (labels ? ' labels' : '')}>
-            {singles.map(p => {
-              const hex = p.swatches[0]?.hex
-              const tile = (
-                <button key={p.id} className="tile" style={hex ? { background: hex } : undefined}
-                  onClick={() => setOpenId(p.id)} aria-label={`${p.brand} ${p.shadeName ?? p.name}`}>
-                  {!hex && p.imagePath && <img src={p.imagePath} alt="" loading="lazy" />}
-                </button>
-              )
-              return labels
-                ? <div key={p.id} className="tile-wrap">{tile}<div className="tile-cap">{p.shadeName || p.name}</div></div>
-                : tile
-            })}
-          </div>
-        </>
-      )}
-
-      {palettes.length > 0 && (
-        <>
-          {singles.length > 0 && <div className="section-label">Palettes</div>}
-          <div className="palettes">
-            {palettes.map(p => (
-              <button key={p.id} className="palette-card" onClick={() => setOpenId(p.id)}>
-                <PaletteGrid p={p} />
-                <div>
-                  <div className="pcard-brand">{p.brand}</div>
-                  <div className="pcard-name">{p.name}{p.shadeName ? ` · ${p.shadeName}` : ''}</div>
+      {visible.length > 0 && (
+        <div className="cards">
+          {visible.map(p => {
+            const multi = p.gridRows * p.gridCols > 1
+            const hex = p.swatches[0]?.hex
+            return (
+              <button key={p.id} className="item-card" onClick={() => setOpenId(p.id)}>
+                <div className="ic-img" style={!p.imagePath && !multi && hex ? { background: hex } : undefined}>
+                  {p.imagePath
+                    ? <img src={p.imagePath} alt="" loading="lazy" />
+                    : multi && <div className="ic-pal"><PaletteGrid p={p} /></div>}
+                  {p.imagePath && (multi
+                    ? <div className="ic-chip-pal"><PaletteGrid p={p} /></div>
+                    : hex && <span className="ic-chip" style={{ background: hex }} />)}
+                </div>
+                <div className="ic-text">
+                  <div className="ic-brand">{p.brand}</div>
+                  <div className="ic-shade">{p.shadeName || p.name}</div>
+                  {p.shadeName && p.name && <div className="ic-name">{p.name}</div>}
                 </div>
               </button>
-            ))}
-          </div>
-        </>
+            )
+          })}
+        </div>
       )}
 
-      <button className="fab" aria-label="Add" onClick={() => setAdding(true)}>+</button>
+      <button className="fab" aria-label="Add" onClick={() => go(`/new?c=${cat}`)}>+</button>
 
       {open && (
         <DetailSheet p={open} onClose={() => setOpenId(null)}
           onDeleted={async () => { setOpenId(null); await onChanged() }} />
       )}
 
-      {adding && (
-        <Sheet onClose={() => setAdding(false)}>
-          <div className="choice">
-            <button className="btn" onClick={() => go(`/new/link?c=${cat}`)}>
-              <span className="ic">🔗</span>
-              <span>Paste a product link<div className="sub">Sephora, Ulta, department stores, brand sites. Image and price are filled in automatically.</div></span>
-            </button>
-            <button className="btn" onClick={() => go(`/new/manual?c=${cat}`)}>
-              <span className="ic">📷</span>
-              <span>Add manually<div className="sub">Take a photo or upload one and fill in the details</div></span>
-            </button>
-          </div>
-        </Sheet>
-      )}
     </div>
   )
 }

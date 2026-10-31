@@ -19,12 +19,13 @@ public class Product
 
     /// <summary>Local image path, e.g. /images/abc.jpg</summary>
     public string? ImagePath { get; set; }
-    /// <summary>Swatch image scraped from the link, if any</summary>
-    public string? SwatchImagePath { get; set; }
-    public string? SourceUrl { get; set; }
 
+    /// <summary>Where it was bought (Sephora, Ulta, ...)</summary>
     public string? Channel { get; set; }
-    public decimal? Price { get; set; }
+    /// <summary>Retail / list price</summary>
+    public decimal? OriginalPrice { get; set; }
+    /// <summary>What was actually paid</summary>
+    public decimal? PaidPrice { get; set; }
     public string? Currency { get; set; }
 
     public int GridRows { get; set; } = 1;
@@ -32,25 +33,23 @@ public class Product
     /// <summary>Row-major order; length = GridRows * GridCols</summary>
     public List<Swatch> Swatches { get; set; } = new();
 
+    /// <summary>Free-form notes / how it wears</summary>
     public string? Notes { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
-public record ScrapeRequest(string Url);
+public record ImageSearchRequest(string Query);
 
-public class ScrapeResult
+public class ImageSearchHit
 {
-    public string SourceUrl { get; set; } = "";
-    public string? Brand { get; set; }
-    public string? Name { get; set; }
-    public string? ShadeName { get; set; }
-    public decimal? Price { get; set; }
-    public string? Currency { get; set; }
-    public string? Channel { get; set; }
-    public string? ImagePath { get; set; }
-    public string? SwatchImagePath { get; set; }
-    /// <summary>Color value given directly by the page (rare)</summary>
-    public string? ColorHex { get; set; }
-    public List<string> Warnings { get; set; } = new();
+    public string ImageUrl { get; set; } = "";
+    public string? ThumbnailUrl { get; set; }
+    public string? Title { get; set; }
+    public string? Source { get; set; }
+    public int? Width { get; set; }
+    public int? Height { get; set; }
 }
+
+/// <summary>Save a web image locally. FallbackUrl (usually the search thumbnail) is tried if Url fails.</summary>
+public record ImageFromUrlRequest(string Url, string? FallbackUrl);

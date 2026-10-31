@@ -1,16 +1,31 @@
 # Vanity — Makeup Organizer
 
-A small web app for cataloging makeup. Paste a product link to pull in the image and price automatically, browse each category as a wall of shade swatches, and set up eyeshadow palettes with a custom grid where you pick each pan's color straight from the product photo.
+A small web app for cataloging makeup. Add an item (brand, product, shade, where you bought it, original and paid price, notes), then pick a picture from an online image search. A color card is generated from the picture automatically, and you can fine-tune it with an eyedropper or color picker. Each category can be viewed as one color chart, and both single cards and charts can be saved as images.
 
 ## Structure
 
 ```
 server/MakeupOrganizer.Api   ASP.NET Core (.NET 8) backend, no NuGet dependencies
   ├─ wwwroot/                Built frontend (already built, ready to use)
-  └─ data/                   Created on first run: products.json + images/
+  ├─ data/                   Created on first run: products.json + images/
+  └─ appsettings.Local.json  Your Serper API key (you create this; git-ignored)
 client/                      React + Vite frontend source (only needed to change the UI)
 start.bat                    Double-click to start
 ```
+
+## Setting up image search (one time)
+
+Online image search uses [Serper.dev](https://serper.dev) (Google Images results). Sign-up is free with no credit card and includes 2,500 free searches.
+
+1. Sign up at https://serper.dev and copy your API key from the dashboard.
+2. Copy `server/MakeupOrganizer.Api/appsettings.Local.example.json` to `appsettings.Local.json` in the same folder.
+3. Paste your key:
+   ```json
+   { "Serper": { "ApiKey": "your-key-here" } }
+   ```
+4. Restart the app.
+
+`appsettings.Local.json` is in `.gitignore`, so the key never ends up on GitHub. Without a key the app still works; you just upload your own photos instead of searching.
 
 ## Running (requires .NET SDK 8 or newer)
 
@@ -21,6 +36,15 @@ start.bat                    Double-click to start
 3. The first time it runs, Windows Firewall shows a prompt. Allow access on **Private networks**, otherwise your phone can't connect.
 4. Open the address on your phone. In Safari, tap Share → Add to Home Screen to use it like an app.
 
+## How it works
+
+- **Add item** → fill in the details → **Save & find a picture**.
+- The app searches for "brand + product + shade" and shows the results. Tap the one that matches.
+- The picture is downloaded to `data/images/` and the color card is generated from its most saturated dominant color. If it's off, drag on the picture to pick the exact spot, or use the color picker.
+- Eyeshadow palettes: set rows × columns, then tap each pan on the picture; it moves to the next pan automatically.
+- **View all as chart** shows the whole category as one color chart, sorted by color.
+- Saving images on iPhone: press and hold the card or chart → **Save to Photos**. On a computer, use **Download**.
+
 ## Changing the frontend (requires Node.js 18+)
 
 ```
@@ -29,21 +53,6 @@ npm install
 npm run dev      # dev server at http://localhost:5173; /api is proxied to 5080 (keep the backend running)
 npm run build    # builds into server/MakeupOrganizer.Api/wwwroot
 ```
-
-## How link parsing works
-
-The backend endpoint `POST /api/scrape` fetches the page and tries, in order:
-
-1. Sephora's embedded `linkStore` JSON (current shade, price, swatch image)
-2. schema.org `Product` JSON-LD (Ulta, most department stores and brand sites)
-3. `og:` / `product:` meta tags
-4. `<title>`
-
-Images are downloaded to `data/images/`. The default color comes from, in order: a color value on the page → the average color of the swatch image → the most saturated dominant color in the product image.
-If it's off, fix it on the edit page with **Pick from image** or the **Color picker**.
-
-Known limitations: some sites (Sephora in particular) have bot protection and may return 403. The app then asks you to upload an image and fill in the details manually.
-Sites that require a login can't be scraped.
 
 ## Backup
 

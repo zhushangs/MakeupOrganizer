@@ -2,5 +2,6 @@ bin/
 obj/
 node_modules/
 server/MakeupOrganizer.Api/data/
+server/MakeupOrganizer.Api/appsettings.Local.json
 .vs/
 *.user

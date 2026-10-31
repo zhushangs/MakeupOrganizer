@@ -91,7 +91,7 @@ public class ProductStore
 
     /// <summary>Whether any product still references this image (used to decide whether to delete it)</summary>
     public bool IsImageReferenced(string path) =>
-        _items.Any(p => p.ImagePath == path || p.SwatchImagePath == path);
+        _items.Any(p => p.ImagePath == path);
 
     private static void Normalize(Product p)
     {
@@ -109,6 +109,8 @@ public class ProductStore
         }
         p.Brand = p.Brand?.Trim() ?? "";
         p.Name = p.Name?.Trim() ?? "";
+        p.ShadeName = string.IsNullOrWhiteSpace(p.ShadeName) ? null : p.ShadeName.Trim();
+        p.Channel = string.IsNullOrWhiteSpace(p.Channel) ? null : p.Channel.Trim();
     }
 
     private async Task SaveAsync()

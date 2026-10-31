@@ -1,4 +1,4 @@
-import type { Product, ProductInput, ScrapeResult } from './types'
+import type { ImageSearchHit, Product, ProductInput } from './types'
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -22,9 +22,13 @@ export const api = {
     fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) })
       .then(r => json<Product>(r)),
   remove: (id: string) => fetch(`/api/products/${id}`, { method: 'DELETE' }).then(r => json<void>(r)),
-  scrape: (url: string) =>
-    fetch('/api/scrape', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) })
-      .then(r => json<ScrapeResult>(r)),
+  searchStatus: () => fetch('/api/image-search/status').then(r => json<{ configured: boolean }>(r)),
+  searchImages: (query: string) =>
+    fetch('/api/image-search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) })
+      .then(r => json<ImageSearchHit[]>(r)),
+  saveImageFromUrl: (url: string, fallbackUrl?: string | null) =>
+    fetch('/api/images/from-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, fallbackUrl }) })
+      .then(r => json<{ path: string }>(r)).then(r => r.path),
   async uploadImage(file: Blob, name = 'photo.jpg'): Promise<string> {
     const fd = new FormData()
     fd.append('file', file, name)

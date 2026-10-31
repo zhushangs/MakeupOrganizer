@@ -10,10 +10,10 @@ export interface Product {
   name: string
   shadeName?: string | null
   imagePath?: string | null
-  swatchImagePath?: string | null
-  sourceUrl?: string | null
+  /** Where it was bought */
   channel?: string | null
-  price?: number | null
+  originalPrice?: number | null
+  paidPrice?: number | null
   currency?: string | null
   gridRows: number
   gridCols: number
@@ -25,18 +25,13 @@ export interface Product {
 
 export type ProductInput = Omit<Product, 'id' | 'createdAt' | 'updatedAt'>
 
-export interface ScrapeResult {
-  sourceUrl: string
-  brand?: string | null
-  name?: string | null
-  shadeName?: string | null
-  price?: number | null
-  currency?: string | null
-  channel?: string | null
-  imagePath?: string | null
-  swatchImagePath?: string | null
-  colorHex?: string | null
-  warnings: string[]
+export interface ImageSearchHit {
+  imageUrl: string
+  thumbnailUrl?: string | null
+  title?: string | null
+  source?: string | null
+  width?: number | null
+  height?: number | null
 }
 
 export interface Category {
