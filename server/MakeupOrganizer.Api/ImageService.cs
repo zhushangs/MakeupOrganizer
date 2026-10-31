@@ -18,6 +18,17 @@ public class ImageService
         ["image/avif"] = ".avif",
     };
 
+    /// <summary>Static-file content types for every image format we save</summary>
+    public static readonly Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider ContentTypes = CreateContentTypes();
+
+    private static Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider CreateContentTypes()
+    {
+        var p = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+        p.Mappings[".avif"] = "image/avif";
+        p.Mappings[".webp"] = "image/webp";
+        return p;
+    }
+
     public ImageService(string dataDir, IHttpClientFactory http, ILogger<ImageService> log)
     {
         _dir = Path.Combine(dataDir, "images");
@@ -48,7 +59,8 @@ public class ImageService
         {
             var client = _http.CreateClient("web");
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
-            req.Headers.TryAddWithoutValidation("Accept", "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8");
+            // Ask for widely supported formats first (sites that convert on the fly would otherwise send AVIF)
+            req.Headers.TryAddWithoutValidation("Accept", "image/jpeg,image/png,image/webp;q=0.9,image/*;q=0.5");
             if (referer is not null) req.Headers.Referrer = new Uri(referer);
             using var res = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
             if (!res.IsSuccessStatusCode) return null;

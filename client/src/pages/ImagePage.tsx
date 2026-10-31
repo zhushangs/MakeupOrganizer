@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, shrinkImage } from '../api'
-import { dominantColor } from '../color'
+import { dominantColor, loadImage } from '../color'
 import ColorSection from '../components/ColorSection'
 import SwatchCard from '../components/SwatchCard'
 import type { ImageSearchHit, Product } from '../types'
@@ -46,6 +46,9 @@ export default function ImagePage({ product, isNew, onDone }: {
 
   /** Use a picture: auto-detect the color for single-color items, then go to the color step */
   const usePicture = async (path: string) => {
+    // Make sure the browser can actually display it before moving on
+    try { await loadImage(path) }
+    catch { throw new Error("This picture can't be displayed. Please choose a different one.") }
     const single = draft.gridRows * draft.gridCols === 1
     const color = single ? await dominantColor(path).catch(() => null) : null
     setDraft(d => ({ ...d, imagePath: path, swatches: color ? [{ ...d.swatches[0], hex: color }] : d.swatches }))

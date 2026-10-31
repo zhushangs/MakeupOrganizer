@@ -53,6 +53,8 @@ app.UseStaticFiles(new StaticFileOptions
 {
     RequestPath = "/images",
     FileProvider = new PhysicalFileProvider(images.ImagesDir),
+    // The default provider doesn't know .avif, so those images were returned as 404
+    ContentTypeProvider = ImageService.ContentTypes,
     OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = "public,max-age=31536000,immutable"
 });
 

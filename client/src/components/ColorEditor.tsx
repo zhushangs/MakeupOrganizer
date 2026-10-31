@@ -66,7 +66,7 @@ function Dropper({ images, onPick }: { images: { label: string; src: string }[];
       ctx.fillStyle = '#fff'
       ctx.fillRect(0, 0, c.width, c.height)
       ctx.drawImage(img, 0, 0, c.width, c.height)
-    }).catch(e => alive && setErr(e.message))
+    }).catch(() => alive && setErr("Couldn't load this picture. Use the color picker, or choose a different picture."))
     return () => { alive = false }
   }, [src])
 
