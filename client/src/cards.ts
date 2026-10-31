@@ -138,7 +138,8 @@ export function renderChart(title: string, items: Product[]): string {
   ctx.fillStyle = INK3
   ctx.font = `500 28px ${FONT}`
   const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-  ctx.fillText(`${items.length} ${items.length === 1 ? 'shade' : 'shades'} · ${date}`, pad, pad + 108)
+  const noun = items.some(p => p.gridRows * p.gridCols > 1) ? 'item' : 'shade'
+  ctx.fillText(`${items.length} ${noun}${items.length === 1 ? '' : 's'} · ${date}`, pad, pad + 108)
 
   items.forEach((p, i) => {
     const x = pad + (i % cols) * (cell + gap)

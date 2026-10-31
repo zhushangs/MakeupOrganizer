@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { dominantColor, isDark } from '../color'
 import type { Swatch } from '../types'
 import ColorEditor from './ColorEditor'
+import PaletteLayout from './PaletteLayout'
 
 export interface ColorValue {
   gridRows: number
@@ -18,9 +19,11 @@ export function resizeSwatches(sw: Swatch[], oldCols: number, rows: number, cols
 }
 
 /** Grid size, pan cells, and the color editor (eyedropper on the product image + color picker). */
-export default function ColorSection({ value, imagePath, onChange }: {
+export default function ColorSection({ value, imagePath, showLayout, onChange }: {
   value: ColorValue
   imagePath?: string | null
+  /** show the palette layout picker (eyeshadow etc.); always shown once there's more than one pan */
+  showLayout?: boolean
   onChange: (v: ColorValue) => void
 }) {
   const [sel, setSel] = useState(0)
@@ -29,7 +32,6 @@ export default function ColorSection({ value, imagePath, onChange }: {
   const cur = Math.min(sel, cells - 1)
 
   const setGrid = (rows: number, cols: number) => {
-    rows = Math.max(1, Math.min(10, rows)); cols = Math.max(1, Math.min(10, cols))
     onChange({ gridRows: rows, gridCols: cols, swatches: resizeSwatches(value.swatches, value.gridCols, rows, cols) })
     setSel(s => Math.min(s, rows * cols - 1))
   }
@@ -40,13 +42,7 @@ export default function ColorSection({ value, imagePath, onChange }: {
 
   return (
     <>
-      <div className="grid-size">
-        <span>Grid</span>
-        <Stepper value={value.gridRows} onChange={v => setGrid(v, value.gridCols)} />
-        <span>rows ×</span>
-        <Stepper value={value.gridCols} onChange={v => setGrid(value.gridRows, v)} />
-        <span>cols = {cells} {cells === 1 ? 'pan' : 'pans'}</span>
-      </div>
+      {(showLayout || multi) && <PaletteLayout rows={value.gridRows} cols={value.gridCols} onChange={setGrid} />}
 
       {multi && (
         <div className="edit-grid" style={{ gridTemplateColumns: `repeat(${value.gridCols}, 1fr)` }}>
@@ -69,7 +65,7 @@ export default function ColorSection({ value, imagePath, onChange }: {
       <ColorEditor
         value={value.swatches[cur]?.hex}
         images={images}
-        hint={multi ? `Tap pan ${cur + 1} on the image. It moves to the next pan automatically.` : 'Press and drag on the image, release to pick'}
+        hint={multi ? `Tap pan ${cur + 1} on the picture (left → right, top → bottom, same as the grid above). It moves to the next pan automatically.` : 'Press and drag on the image, release to pick'}
         onChange={(hex, fromImage) => {
           patchCell(cur, { hex })
           if (fromImage && multi) setSel(Math.min(cur + 1, cells - 1))
@@ -82,15 +78,5 @@ export default function ColorSection({ value, imagePath, onChange }: {
         </button>
       )}
     </>
-  )
-}
-
-function Stepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  return (
-    <span className="stepper">
-      <button type="button" onClick={() => onChange(value - 1)} disabled={value <= 1} aria-label="Decrease">−</button>
-      <span>{value}</span>
-      <button type="button" onClick={() => onChange(value + 1)} disabled={value >= 10} aria-label="Increase">+</button>
-    </span>
   )
 }

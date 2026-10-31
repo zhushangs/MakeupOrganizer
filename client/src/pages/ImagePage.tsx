@@ -3,7 +3,7 @@ import { api, shrinkImage } from '../api'
 import { dominantColor, loadImage } from '../color'
 import ColorSection from '../components/ColorSection'
 import SwatchCard from '../components/SwatchCard'
-import type { ImageSearchHit, Product } from '../types'
+import { categoryOf, type ImageSearchHit, type Product } from '../types'
 import { go } from '../App'
 
 const defaultQuery = (p: Product) => [p.brand, p.name, p.shadeName].filter(Boolean).join(' ')
@@ -133,7 +133,7 @@ export default function ImagePage({ product, isNew, onDone }: {
           <SwatchCard p={draft} />
           <div className="card">
             <h3>Adjust the color<span className="opt">if it looks off</span></h3>
-            <ColorSection value={draft} imagePath={draft.imagePath} onChange={v => setDraft(d => ({ ...d, ...v }))} />
+            <ColorSection value={draft} imagePath={draft.imagePath} showLayout={categoryOf(draft.category).multi} onChange={v => setDraft(d => ({ ...d, ...v }))} />
           </div>
           <button className="link-btn" style={{ alignSelf: 'flex-start' }} onClick={() => setStage('search')}>‹ Choose a different picture</button>
           {error && <div className="err">{error}</div>}

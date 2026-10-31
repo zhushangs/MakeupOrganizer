@@ -3,6 +3,7 @@ import { api, shrinkImage } from '../api'
 import { dominantColor } from '../color'
 import ColorSection, { resizeSwatches } from '../components/ColorSection'
 import DuplicateSheet from '../components/DuplicateSheet'
+import PaletteLayout from '../components/PaletteLayout'
 import { findDuplicate } from '../dup'
 import { CATEGORIES, categoryOf, type Product, type ProductInput } from '../types'
 import { go } from '../App'
@@ -127,6 +128,14 @@ export default function EditPage({ items, existing, initialCategory, onSaved }: 
           )}
         </div>
 
+        {!existing && (categoryOf(f.category).multi || f.gridRows * f.gridCols > 1) && (
+          <div className="card">
+            <h3>Palette layout<span className="opt">match the real pans</span></h3>
+            <PaletteLayout rows={f.gridRows} cols={f.gridCols}
+              onChange={(r, c) => setF(prev => ({ ...prev, gridRows: r, gridCols: c, swatches: resizeSwatches(prev.swatches, prev.gridCols, r, c) }))} />
+          </div>
+        )}
+
         <div className="card">
           <h3>Purchase<span className="opt">optional</span></h3>
           <div className="field"><label>Bought at</label>
@@ -170,7 +179,7 @@ export default function EditPage({ items, existing, initialCategory, onSaved }: 
 
             <div className="card">
               <h3>Color card</h3>
-              <ColorSection value={f} imagePath={f.imagePath} onChange={v => setF(prev => ({ ...prev, ...v }))} />
+              <ColorSection value={f} imagePath={f.imagePath} showLayout={categoryOf(f.category).multi} onChange={v => setF(prev => ({ ...prev, ...v }))} />
             </div>
           </>
         )}

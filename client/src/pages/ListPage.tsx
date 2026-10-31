@@ -94,14 +94,15 @@ export default function ListPage({ items, error, category, openItem, onChanged }
             const hex = p.swatches[0]?.hex
             return (
               <button key={p.id} className="item-card" onClick={() => setOpenId(p.id)}>
-                <div className="ic-img" style={!p.imagePath && !multi && hex ? { background: hex } : undefined}>
-                  {p.imagePath
-                    ? <img src={p.imagePath} alt="" loading="lazy" />
-                    : multi ? <div className="ic-pal"><PaletteGrid p={p} /></div>
-                    : !hex && <span className="ic-empty">No picture yet</span>}
-                  {p.imagePath && (multi
-                    ? <div className="ic-chip-pal"><PaletteGrid p={p} /></div>
-                    : hex && <span className="ic-chip" style={{ background: hex }} />)}
+                {/* Home shows the color card: one block of color, or the palette in its real layout */}
+                <div className={'ic-img' + (multi ? ' pal' : '')}
+                  style={!multi && hex ? { background: hex } : undefined}>
+                  {multi
+                    ? <div className="ic-pal" style={{ width: `${84 * Math.min(1, p.gridCols / p.gridRows)}%` }}><PaletteGrid p={p} /></div>
+                    : !hex && (p.imagePath
+                      ? <img src={p.imagePath} alt="" loading="lazy" />
+                      : <span className="ic-empty">No color yet</span>)}
+                  {p.imagePath && (multi || hex) && <img className="ic-thumb" src={p.imagePath} alt="" loading="lazy" />}
                 </div>
                 <div className="ic-text">
                   <div className="ic-brand">{p.brand}</div>
