@@ -51,6 +51,11 @@ export default function DetailSheet({ p, onClose, onDeleted }: {
         </dl>
       )}
 
+      {!p.imagePath && (
+        <button className="btn primary" style={{ width: '100%', marginBottom: 10 }} onClick={() => go(`/image/${p.id}`)}>
+          Find a picture &amp; make the color card
+        </button>
+      )}
       <button className="btn" style={{ width: '100%', marginBottom: 10 }} onClick={() => setCard(renderProductCard(p))}>
         Save color card as image
       </button>

@@ -3,6 +3,7 @@ import { CATEGORIES, type Product } from '../types'
 import { hueSortKey } from '../color'
 import PaletteGrid from '../components/PaletteGrid'
 import DetailSheet from '../components/DetailSheet'
+import Sheet from '../components/Sheet'
 import { go } from '../App'
 
 type Sort = 'hue' | 'new' | 'brand'
@@ -28,6 +29,7 @@ export default function ListPage({ items, error, category, onChanged }: {
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<Sort>(() => (store.get('sort') as Sort) || 'hue')
   const [openId, setOpenId] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
 
   const visible = useMemo(() => {
     const kw = q.trim().toLowerCase()
@@ -89,7 +91,8 @@ export default function ListPage({ items, error, category, onChanged }: {
                 <div className="ic-img" style={!p.imagePath && !multi && hex ? { background: hex } : undefined}>
                   {p.imagePath
                     ? <img src={p.imagePath} alt="" loading="lazy" />
-                    : multi && <div className="ic-pal"><PaletteGrid p={p} /></div>}
+                    : multi ? <div className="ic-pal"><PaletteGrid p={p} /></div>
+                    : !hex && <span className="ic-empty">No picture yet</span>}
                   {p.imagePath && (multi
                     ? <div className="ic-chip-pal"><PaletteGrid p={p} /></div>
                     : hex && <span className="ic-chip" style={{ background: hex }} />)}
@@ -105,13 +108,27 @@ export default function ListPage({ items, error, category, onChanged }: {
         </div>
       )}
 
-      <button className="fab" aria-label="Add" onClick={() => go(`/new?c=${cat}`)}>+</button>
+      <button className="fab" aria-label="Add" onClick={() => setAdding(true)}>+</button>
 
       {open && (
         <DetailSheet p={open} onClose={() => setOpenId(null)}
           onDeleted={async () => { setOpenId(null); await onChanged() }} />
       )}
 
+      {adding && (
+        <Sheet onClose={() => setAdding(false)}>
+          <div className="choice">
+            <button className="btn" onClick={() => go('/import')}>
+              <span className="ic">🧾</span>
+              <span>Import from screenshots<div className="sub">Order or cart screenshots. Brand, product, shade and prices are filled in for you to check.</div></span>
+            </button>
+            <button className="btn" onClick={() => go(`/new?c=${cat}`)}>
+              <span className="ic">✏️</span>
+              <span>Add one item<div className="sub">Type in the details yourself</div></span>
+            </button>
+          </div>
+        </Sheet>
+      )}
     </div>
   )
 }

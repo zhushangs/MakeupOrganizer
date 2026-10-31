@@ -5,6 +5,7 @@ import ListPage from './pages/ListPage'
 import EditPage from './pages/EditPage'
 import ImagePage from './pages/ImagePage'
 import ChartPage from './pages/ChartPage'
+import ImportPage from './pages/ImportPage'
 
 /** Hash-based routing so the phone's back gesture works */
 type Route =
@@ -13,6 +14,7 @@ type Route =
   | { name: 'edit'; id: string }
   | { name: 'image'; id: string; isNew: boolean }
   | { name: 'chart'; category: string }
+  | { name: 'import' }
 
 function parseHash(): Route {
   const h = location.hash.replace(/^#\/?/, '')
@@ -22,6 +24,7 @@ function parseHash(): Route {
   if (parts[0] === 'new') return { name: 'new', category: q.get('c') ?? undefined }
   if (parts[0] === 'edit' && parts[1]) return { name: 'edit', id: parts[1] }
   if (parts[0] === 'image' && parts[1]) return { name: 'image', id: parts[1], isNew: q.get('new') === '1' }
+  if (parts[0] === 'import') return { name: 'import' }
   if (parts[0] === 'chart') return { name: 'chart', category: q.get('c') ?? 'lipstick' }
   return { name: 'list', category: q.get('c') ?? undefined }
 }
@@ -56,6 +59,8 @@ export default function App() {
       return <ListPage items={items} error={error} category={route.category} onChanged={reload} />
     case 'chart':
       return <ChartPage items={items} category={route.category} />
+    case 'import':
+      return <ImportPage onSaved={async cat => { await reload(); replace(`/?c=${cat}`) }} />
     case 'new':
       return (
         <EditPage key="new" initialCategory={route.category}

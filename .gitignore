@@ -5,3 +5,4 @@ server/MakeupOrganizer.Api/data/
 server/MakeupOrganizer.Api/appsettings.Local.json
 .vs/
 *.user
+client/public/ocr/

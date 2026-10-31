@@ -38,12 +38,19 @@ Online image search uses [Serper.dev](https://serper.dev) (Google Images results
 
 ## How it works
 
-- **Add item** → fill in the details → **Save & find a picture**.
+- **Import from screenshots** (+ button): pick one or more order/cart screenshots. Text is read on the device with a free, built-in OCR engine (tesseract.js, no API key), then brand, product, shade, store and prices are guessed from it. Check and fix the rows, uncheck anything that isn't makeup, and save. Missing fields stay empty; add pictures and notes later from each item ("Find a picture & make the color card").
+- **Add one item**: fill in the details → **Save & find a picture**.
 - The app searches for "brand + product + shade" and shows the results. Tap the one that matches.
 - The picture is downloaded to `data/images/` and the color card is generated from its most saturated dominant color. If it's off, drag on the picture to pick the exact spot, or use the color picker.
 - Eyeshadow palettes: set rows × columns, then tap each pan on the picture; it moves to the next pan automatically.
 - **View all as chart** shows the whole category as one color chart, sorted by color.
 - Saving images on iPhone: press and hold the card or chart → **Save to Photos**. On a computer, use **Download**.
+
+### Screenshot import tips
+
+- Crop or zoom so the product rows are large; full-resolution phone screenshots work best.
+- Recognition is English-only. Brands are matched against a built-in list in `client/src/receipt.ts` (add any you buy often).
+- Struck-through original prices are hard to read and may come out a little off; double-check them.
 
 ## Changing the frontend (requires Node.js 18+)
 
