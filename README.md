@@ -43,13 +43,14 @@ Online image search uses [Serper.dev](https://serper.dev) (Google Images results
 - The app searches for "brand + product + shade" and shows the results. Tap the one that matches.
 - The picture is downloaded to `data/images/` and the color card is generated from its most saturated dominant color. If it's off, drag on the picture to pick the exact spot, or use the color picker.
 - Eyeshadow palettes: set rows × columns, then tap each pan on the picture; it moves to the next pan automatically.
+- **Categories & brands** (gear icon on the home page): add, rename, reorder or remove categories (a category can be marked as a palette with a default layout; one in use can't be removed), and keep your own brand list. Your brands and every brand you already own are suggested when typing and recognized in screenshot import. You can also add a category on the spot with **+ New** when adding an item. Stored in `data/settings.json`.
 - **View all as chart** shows the whole category as one color chart, sorted by color.
 - Saving images on iPhone: press and hold the card or chart → **Save to Photos**. On a computer, use **Download**.
 
 ### Screenshot import tips
 
 - Crop or zoom so the product rows are large; full-resolution phone screenshots work best.
-- Recognition is English-only. Brands are matched against a built-in list in `client/src/receipt.ts` (add any you buy often).
+- Recognition is English-only. Brands are matched against a built-in list plus your own brands (Categories & brands) and brands you already own.
 - Struck-through original prices are hard to read and may come out a little off; double-check them.
 
 ## Changing the frontend (requires Node.js 18+)

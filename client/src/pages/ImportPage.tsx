@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { api } from '../api'
 import { recognizeText } from '../ocr'
 import { parseReceipt } from '../receipt'
-import { CATEGORIES, categoryOf, type Product, type ProductInput } from '../types'
+import { categoryOf, getCategories, type Product, type ProductInput } from '../types'
 import { findDuplicate } from '../dup'
 import DetailSheet from '../components/DetailSheet'
 import { go } from '../App'
@@ -37,7 +37,11 @@ const num = (s: string) => {
 }
 
 /** Import items from shopping screenshots: OCR on the phone, then review/fix before saving. */
-export default function ImportPage({ items, onSaved }: { items: Product[] | null; onSaved: (firstCategory: string) => void }) {
+export default function ImportPage({ items, brands, onSaved }: {
+  items: Product[] | null
+  brands: string[]
+  onSaved: (firstCategory: string) => void
+}) {
   const [shots, setShots] = useState<Shot[]>([])
   const [rows, setRows] = useState<Row[]>([])
   const [saving, setSaving] = useState(false)
@@ -86,7 +90,7 @@ export default function ImportPage({ items, onSaved }: { items: Product[] | null
     all.map((r, i) => (i >= firstNew && dupOf(r, i, all) ? { ...r, include: false } : r))
 
   const addBlank = () => setRows(r => [...r, {
-    key: nextKey++, include: true, category: 'lipstick', brand: '', name: '', shadeName: '',
+    key: nextKey++, include: true, category: getCategories()[0]?.key ?? 'other', brand: '', name: '', shadeName: '',
     channel: r[r.length - 1]?.channel ?? '', original: '', paid: '',
   }])
 
@@ -164,7 +168,7 @@ export default function ImportPage({ items, onSaved }: { items: Product[] | null
                 Item {i + 1}
               </label>
               <select className="select small" value={r.category} onChange={e => patchRow(r.key, { category: e.target.value })}>
-                {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                {getCategories().map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
               </select>
             </div>
             {(() => {
@@ -179,7 +183,7 @@ export default function ImportPage({ items, onSaved }: { items: Product[] | null
             })()}
             <div className="row">
               <div className="field"><label>Brand</label>
-                <input className="input" value={r.brand} onChange={e => patchRow(r.key, { brand: e.target.value })} /></div>
+                <input className="input" list="brand-list" value={r.brand} onChange={e => patchRow(r.key, { brand: e.target.value })} /></div>
               <div className="field"><label>Shade</label>
                 <input className="input" value={r.shadeName} onChange={e => patchRow(r.key, { shadeName: e.target.value })} /></div>
             </div>
@@ -202,6 +206,7 @@ export default function ImportPage({ items, onSaved }: { items: Product[] | null
         {error && <div className="err">{error}</div>}
       </div>
 
+      <datalist id="brand-list">{brands.map(b => <option key={b} value={b} />)}</datalist>
       {viewing && <DetailSheet p={viewing} onClose={() => setViewing(null)} onDeleted={() => setViewing(null)} />}
 
       {rows.length > 0 && (

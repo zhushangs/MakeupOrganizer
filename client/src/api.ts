@@ -1,4 +1,4 @@
-import type { ImageSearchHit, Product, ProductInput } from './types'
+import type { AppSettings, ImageSearchHit, Product, ProductInput } from './types'
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -22,6 +22,10 @@ export const api = {
     fetch(`/api/products/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) })
       .then(r => json<Product>(r)),
   remove: (id: string) => fetch(`/api/products/${id}`, { method: 'DELETE' }).then(r => json<void>(r)),
+  getSettings: () => fetch('/api/settings').then(r => json<AppSettings>(r)),
+  saveSettings: (s: AppSettings) =>
+    fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) })
+      .then(r => json<AppSettings>(r)),
   searchStatus: () => fetch('/api/image-search/status').then(r => json<{ configured: boolean }>(r)),
   searchImages: (query: string) =>
     fetch('/api/image-search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) })

@@ -344,3 +344,27 @@ img { display: block; max-width: 100%; }
 .preset-grid i { aspect-ratio: 1; border-radius: 2px; background: var(--accent); opacity: .55; }
 .preset.on .preset-grid i { opacity: 1; }
 .preset-label { font-size: 11px; color: var(--ink-2); }
+
+/* ---------- settings ---------- */
+.title-row .spacer { flex: 1; }
+.icon-btn { border: 0; background: none; color: var(--ink-2); padding: 4px; margin-left: 4px; display: grid; place-items: center; align-self: center; }
+.chip.add { border-style: dashed; color: var(--accent); }
+.new-cat { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+.check.small { font-weight: 400; font-size: 14px; color: var(--ink-2); }
+.check.small input { width: 18px; height: 18px; }
+.link-btn.small { font-size: 13px; }
+.cat-row { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.cat-row:last-of-type { border-bottom: 0; }
+.cat-main { display: flex; align-items: center; gap: 8px; }
+.cat-main .input { flex: 1; min-width: 0; padding: 8px 10px; }
+.cat-move { display: flex; flex-direction: column; gap: 2px; }
+.cat-move button { border: 0; background: var(--surface-2); color: var(--ink-2); font-size: 9px; width: 26px; height: 17px; border-radius: 5px; padding: 0; }
+.cat-move button:disabled { opacity: .3; }
+.cat-count { min-width: 18px; text-align: right; font-size: 13px; color: var(--ink-3); }
+.icon-x { border: 0; background: none; color: var(--danger); font-size: 22px; line-height: 1; width: 28px; padding: 0; }
+.icon-x:disabled { color: var(--ink-3); opacity: .35; }
+.cat-opts { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-left: 34px; flex-wrap: wrap; }
+.brand-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.brand-chip { display: inline-flex; align-items: center; gap: 4px; padding: 5px 6px 5px 12px; border-radius: 999px; background: var(--surface-2); font-size: 14px; border: 1px solid transparent; }
+.brand-chip button { border: 0; background: none; color: var(--ink-3); font-size: 16px; line-height: 1; padding: 0 4px; }
+.brand-chip.ghost { background: none; border: 1px dashed var(--line); color: var(--ink-2); padding: 5px 12px; }

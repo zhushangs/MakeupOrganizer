@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CATEGORIES, type Product } from '../types'
+import { getCategories, type Product } from '../types'
 import { hueSortKey } from '../color'
 import PaletteGrid from '../components/PaletteGrid'
 import DetailSheet from '../components/DetailSheet'
@@ -54,15 +54,22 @@ export default function ListPage({ items, error, category, openItem, onChanged }
       <header className="top">
         <div className="title-row">
           <h1 className="title">Vanity{total > 0 && <small>{total} items</small>}</h1>
+          <span className="spacer" />
           {(cat === 'all' ? total : counts[cat] ?? 0) > 0 && (
             <button className="link-btn" onClick={() => go(`/chart?c=${cat}`)}>View all as chart</button>
           )}
+          <button className="icon-btn" aria-label="Settings: categories and brands" onClick={() => go('/settings')}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
         </div>
         <nav className="chips">
           <button className={'chip' + (cat === 'all' ? ' on' : '')} onClick={() => go('/')}>
             All{total ? <span className="n">{total}</span> : null}
           </button>
-          {CATEGORIES.map(c => (
+          {getCategories().map(c => (
             <button key={c.key} className={'chip' + (c.key === cat ? ' on' : '')} onClick={() => go(`/?c=${c.key}`)}>
               {c.label}{counts[c.key] ? <span className="n">{counts[c.key]}</span> : null}
             </button>

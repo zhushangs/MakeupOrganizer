@@ -5,7 +5,7 @@ import ColorSection, { resizeSwatches } from '../components/ColorSection'
 import DuplicateSheet from '../components/DuplicateSheet'
 import PaletteLayout from '../components/PaletteLayout'
 import { findDuplicate } from '../dup'
-import { CATEGORIES, categoryOf, type Product, type ProductInput } from '../types'
+import { categoryOf, getCategories, newCategoryKey, type AppSettings, type Product, type ProductInput } from '../types'
 import { go } from '../App'
 
 const CHANNELS = ['Sephora', 'Ulta', 'Nordstrom', "Macy's", "Bloomingdale's", 'Saks Fifth Avenue', 'Neiman Marcus', 'Amazon', 'Target', 'Brand website', 'Counter', 'Duty free', 'Gift']
@@ -27,13 +27,16 @@ const parsePrice = (v: string) => {
   return Number.isFinite(n) ? n : null
 }
 
-export default function EditPage({ items, existing, initialCategory, onSaved }: {
+export default function EditPage({ items, brands, settings, onSaveSettings, existing, initialCategory, onSaved }: {
   items: Product[] | null
+  brands: string[]
+  settings: AppSettings
+  onSaveSettings: (s: AppSettings) => Promise<void>
   existing?: Product
   initialCategory?: string
   onSaved: (p: Product, isNew: boolean) => void
 }) {
-  const [f, setF] = useState<ProductInput>(() => existing ? structuredClone(existing) : blank(initialCategory ?? 'lipstick'))
+  const [f, setF] = useState<ProductInput>(() => existing ? structuredClone(existing) : blank(initialCategory ?? getCategories()[0]?.key ?? 'other'))
   // keep the raw text so typing "12." isn't eaten by number parsing
   const [orig, setOrig] = useState(existing?.originalPrice?.toString() ?? '')
   const [paid, setPaid] = useState(existing?.paidPrice?.toString() ?? '')
@@ -43,6 +46,30 @@ export default function EditPage({ items, existing, initialCategory, onSaved }: 
   const fileRef = useRef<HTMLInputElement>(null)
   const [dupPrompt, setDupPrompt] = useState<Product | null>(null)
   const dup = useMemo(() => findDuplicate(items, f, existing?.id), [items, f.brand, f.name, f.shadeName, existing?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // inline "+ New category"
+  const [newCat, setNewCat] = useState<{ label: string; multi: boolean } | null>(null)
+  const addCategory = async () => {
+    const label = newCat?.label.trim()
+    if (!label) return
+    const existingCat = getCategories().find(c => c.label.toLowerCase() === label.toLowerCase())
+    if (existingCat) { setCategory(existingCat.key); setNewCat(null); return }
+    const key = newCategoryKey(label, getCategories().map(c => c.key))
+    const multi = newCat!.multi
+    try {
+      await onSaveSettings({
+        ...settings,
+        // new categories go before "Other", which stays last
+        categories: [
+          ...getCategories().filter(c => c.key !== 'other'),
+          { key, label, multi, defaultRows: multi ? 2 : 1, defaultCols: multi ? 2 : 1 },
+          ...getCategories().filter(c => c.key === 'other'),
+        ],
+      })
+      setCategory(key)
+      setNewCat(null)
+    } catch (e) { setError((e as Error).message) }
+  }
 
   const set = <K extends keyof ProductInput>(k: K, v: ProductInput[K]) => setF(prev => ({ ...prev, [k]: v }))
 
@@ -104,18 +131,34 @@ export default function EditPage({ items, existing, initialCategory, onSaved }: 
         <div className="card">
           <h3>Category</h3>
           <div className="chips" style={{ flexWrap: 'wrap', padding: 0 }}>
-            {CATEGORIES.map(c => (
+            {getCategories().map(c => (
               <button key={c.key} type="button" className={'chip' + (c.key === f.category ? ' on' : '')} onClick={() => setCategory(c.key)}>
                 {c.label}
               </button>
             ))}
+            {!newCat && <button type="button" className="chip add" onClick={() => setNewCat({ label: '', multi: false })}>+ New</button>}
           </div>
+          {newCat && (
+            <div className="new-cat">
+              <input className="input" autoFocus placeholder="e.g. Mascara" value={newCat.label}
+                onChange={e => setNewCat({ ...newCat, label: e.target.value })} onKeyDown={e => e.key === 'Enter' && addCategory()} />
+              <label className="check small">
+                <input type="checkbox" checked={newCat.multi} onChange={e => setNewCat({ ...newCat, multi: e.target.checked })} />
+                Has several pans (palette)
+              </label>
+              <div className="row">
+                <button type="button" className="btn small" onClick={() => setNewCat(null)}>Cancel</button>
+                <button type="button" className="btn small primary" onClick={addCategory} disabled={!newCat.label.trim()}>Add category</button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="card">
           <h3>Product</h3>
           <div className="field"><label>Brand</label>
-            <input className="input" value={f.brand} onChange={e => set('brand', e.target.value)} placeholder="MAC" autoCapitalize="words" /></div>
+            <input className="input" list="brand-list" value={f.brand} onChange={e => set('brand', e.target.value)} placeholder="MAC" autoCapitalize="words" />
+            <datalist id="brand-list">{brands.map(b => <option key={b} value={b} />)}</datalist></div>
           <div className="field"><label>Product name</label>
             <input className="input" value={f.name} onChange={e => set('name', e.target.value)} placeholder="Matte Lipstick" autoCapitalize="words" /></div>
           <div className="field"><label>{f.gridRows * f.gridCols > 1 ? 'Palette / shade name' : 'Shade'}</label>

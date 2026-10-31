@@ -1,3 +1,5 @@
+import { DEFAULT_CATEGORIES, getCategories } from './types'
+
 /**
  * Turns OCR text from an order / cart screenshot into draft items.
  * Pure heuristics (no AI): brand list + "Color:" / "Shade:" labels + $ amounts.
@@ -57,7 +59,15 @@ const CATEGORY_RULES: [RegExp, string][] = [
 ]
 
 export function guessCategory(text: string): string | null {
-  for (const [re, cat] of CATEGORY_RULES) if (re.test(text)) return cat
+  // the user's own categories first, matched by name ("Mascara", "Lip Liner" …)
+  const t = text.toLowerCase()
+  for (const c of getCategories()) {
+    if (DEFAULT_CATEGORIES.some(d => d.key === c.key)) continue
+    const label = c.label.toLowerCase().replace(/s$/, '')
+    if (label.length > 1 && t.includes(label)) return c.key
+  }
+  const known = new Set(getCategories().map(c => c.key))
+  for (const [re, cat] of CATEGORY_RULES) if (re.test(text) && known.has(cat)) return cat
   return null
 }
 
@@ -112,10 +122,15 @@ function fixStruckPrices(list: Amount[]): number[] {
 }
 
 // "NY X Professional Makeup": OCR sometimes inserts spaces, so allow an optional space between letters
-const BRAND_RES = BRANDS.map(b => ({
-  brand: b,
-  re: new RegExp('^' + [...b.replace(/\s+/g, '')].map(ch => ch.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')).join('\\s?') + '(?=$|[\\s,:–-])', 'i'),
-}))
+const brandRe = (b: string) => new RegExp('^' + [...b.replace(/\s+/g, '')].map(ch => ch.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')).join('\\s?') + '(?=$|[\\s,:–-])', 'i')
+let BRAND_RES = BRANDS.map(b => ({ brand: b, re: brandRe(b) }))
+
+/** Add the user's own brands (from Settings and from items they own) to the matcher */
+export function setExtraBrands(extra: string[]) {
+  const all = [...new Set([...extra.map(b => b.trim()).filter(b => b.length > 1), ...BRANDS])]
+    .sort((a, b) => b.length - a.length)
+  BRAND_RES = all.map(b => ({ brand: b, re: brandRe(b) }))
+}
 
 function matchBrand(line: string): { brand: string; rest: string } | null {
   for (const { brand, re } of BRAND_RES) {

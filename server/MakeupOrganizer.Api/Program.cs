@@ -33,6 +33,7 @@ builder.Services.AddHttpClient("web", c =>
 });
 
 builder.Services.AddSingleton(new ProductStore(dataDir));
+builder.Services.AddSingleton(new SettingsStore(dataDir));
 builder.Services.AddSingleton(sp => new ImageService(dataDir,
     sp.GetRequiredService<IHttpClientFactory>(), sp.GetRequiredService<ILogger<ImageService>>()));
 builder.Services.AddSingleton<ImageSearchService>();
@@ -99,6 +100,9 @@ api.MapPost("/images", async (IFormFile file, ImageService img) =>
     var path = await img.SaveAsync(s, file.ContentType);
     return path is null ? Results.BadRequest(new { error = "Unsupported image format" }) : Results.Ok(new { path });
 }).DisableAntiforgery();
+
+api.MapGet("/settings", async (SettingsStore s) => await s.GetAsync());
+api.MapPut("/settings", async (AppSettings body, SettingsStore s) => await s.SaveAsync(body));
 
 api.MapGet("/image-search/status", (ImageSearchService search) => Results.Ok(new { configured = search.IsConfigured }));
 
