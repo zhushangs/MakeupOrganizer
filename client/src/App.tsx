@@ -9,7 +9,7 @@ import ImportPage from './pages/ImportPage'
 
 /** Hash-based routing so the phone's back gesture works */
 type Route =
-  | { name: 'list'; category?: string }
+  | { name: 'list'; category?: string; open?: string }
   | { name: 'new'; category?: string }
   | { name: 'edit'; id: string }
   | { name: 'image'; id: string; isNew: boolean }
@@ -25,8 +25,8 @@ function parseHash(): Route {
   if (parts[0] === 'edit' && parts[1]) return { name: 'edit', id: parts[1] }
   if (parts[0] === 'image' && parts[1]) return { name: 'image', id: parts[1], isNew: q.get('new') === '1' }
   if (parts[0] === 'import') return { name: 'import' }
-  if (parts[0] === 'chart') return { name: 'chart', category: q.get('c') ?? 'lipstick' }
-  return { name: 'list', category: q.get('c') ?? undefined }
+  if (parts[0] === 'chart') return { name: 'chart', category: q.get('c') ?? 'all' }
+  return { name: 'list', category: q.get('c') ?? undefined, open: q.get('open') ?? undefined }
 }
 
 export const go = (hash: string) => { location.hash = hash }
@@ -56,14 +56,14 @@ export default function App() {
 
   switch (route.name) {
     case 'list':
-      return <ListPage items={items} error={error} category={route.category} onChanged={reload} />
+      return <ListPage items={items} error={error} category={route.category} openItem={route.open} onChanged={reload} />
     case 'chart':
       return <ChartPage items={items} category={route.category} />
     case 'import':
-      return <ImportPage onSaved={async cat => { await reload(); replace(`/?c=${cat}`) }} />
+      return <ImportPage items={items} onSaved={async () => { await reload(); replace('/') }} />
     case 'new':
       return (
-        <EditPage key="new" initialCategory={route.category}
+        <EditPage key="new" items={items} initialCategory={route.category}
           onSaved={async p => { await reload(); replace(`/image/${p.id}?new=1`) }} />
       )
   }
@@ -78,7 +78,7 @@ export default function App() {
     )
 
   return (
-    <EditPage key={product.id} existing={product}
+    <EditPage key={product.id} items={items} existing={product}
       onSaved={async p => { await reload(); replace(`/?c=${p.category}`) }} />
   )
 }

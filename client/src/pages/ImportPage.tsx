@@ -2,7 +2,9 @@ import { useRef, useState } from 'react'
 import { api } from '../api'
 import { recognizeText } from '../ocr'
 import { parseReceipt } from '../receipt'
-import { CATEGORIES, categoryOf, type ProductInput } from '../types'
+import { CATEGORIES, categoryOf, type Product, type ProductInput } from '../types'
+import { findDuplicate } from '../dup'
+import DetailSheet from '../components/DetailSheet'
 import { go } from '../App'
 
 interface Row {
@@ -35,12 +37,22 @@ const num = (s: string) => {
 }
 
 /** Import items from shopping screenshots: OCR on the phone, then review/fix before saving. */
-export default function ImportPage({ onSaved }: { onSaved: (firstCategory: string) => void }) {
+export default function ImportPage({ items, onSaved }: { items: Product[] | null; onSaved: (firstCategory: string) => void }) {
   const [shots, setShots] = useState<Shot[]>([])
   const [rows, setRows] = useState<Row[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [viewing, setViewing] = useState<Product | null>(null)
+
+  /** Already owned, or the same thing appears earlier in this import (e.g. a screenshot picked twice) */
+  const dupOf = (r: Row, index: number, all: Row[]) => {
+    const owned = findDuplicate(items, r)
+    if (owned) return { owned }
+    const asProduct = (x: Row) => ({ id: String(x.key), brand: x.brand, name: x.name, shadeName: x.shadeName }) as Product
+    const earlier = findDuplicate(all.slice(0, index).map(asProduct), r)
+    return earlier ? { earlierIndex: all.findIndex(x => String(x.key) === earlier.id) } : null
+  }
 
   const patchShot = (key: number, p: Partial<Shot>) => setShots(s => s.map(x => (x.key === key ? { ...x, ...p } : x)))
   const patchRow = (key: number, p: Partial<Row>) => setRows(r => r.map(x => (x.key === key ? { ...x, ...p } : x)))
@@ -57,17 +69,21 @@ export default function ImportPage({ onSaved }: { onSaved: (firstCategory: strin
       try {
         const { text, raw } = await recognizeText(list[i], p => patchShot(shot.key, { progress: p }))
         const parsed = parseReceipt(text, raw)
-        setRows(r => [...r, ...parsed.items.map(it => ({
+        setRows(r => uncheckDuplicates([...r, ...parsed.items.map(it => ({
           key: nextKey++, include: true,
           category: it.category, brand: it.brand ?? '', name: it.name ?? '', shadeName: it.shadeName ?? '',
           channel: parsed.channel ?? '', original: fmt(it.originalPrice), paid: fmt(it.paidPrice),
-        }))])
+        }))], r.length))
         patchShot(shot.key, { status: 'done', progress: 1, text, found: parsed.items.length })
       } catch (e) {
         patchShot(shot.key, { status: 'error', error: (e as Error).message || 'Could not read this image' })
       }
     }
   }
+
+  /** New rows that duplicate something start unchecked */
+  const uncheckDuplicates = (all: Row[], firstNew: number) =>
+    all.map((r, i) => (i >= firstNew && dupOf(r, i, all) ? { ...r, include: false } : r))
 
   const addBlank = () => setRows(r => [...r, {
     key: nextKey++, include: true, category: 'lipstick', brand: '', name: '', shadeName: '',
@@ -151,6 +167,16 @@ export default function ImportPage({ onSaved }: { onSaved: (firstCategory: strin
                 {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
               </select>
             </div>
+            {(() => {
+              const d = dupOf(r, i, rows)
+              if (!d) return null
+              return d.owned ? (
+                <div className="warn draft-dup">
+                  Already in your vanity: <b>{[d.owned.brand, d.owned.shadeName || d.owned.name].filter(Boolean).join(' · ')}</b>.{' '}
+                  <button type="button" className="link-btn" onClick={() => setViewing(d.owned!)}>View it</button>
+                </div>
+              ) : <div className="warn draft-dup">Same as item {(d.earlierIndex ?? 0) + 1} above.</div>
+            })()}
             <div className="row">
               <div className="field"><label>Brand</label>
                 <input className="input" value={r.brand} onChange={e => patchRow(r.key, { brand: e.target.value })} /></div>
@@ -175,6 +201,8 @@ export default function ImportPage({ onSaved }: { onSaved: (firstCategory: strin
         )}
         {error && <div className="err">{error}</div>}
       </div>
+
+      {viewing && <DetailSheet p={viewing} onClose={() => setViewing(null)} onDeleted={() => setViewing(null)} />}
 
       {rows.length > 0 && (
         <div className="save-bar">

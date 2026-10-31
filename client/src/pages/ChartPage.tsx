@@ -6,9 +6,9 @@ import { go } from '../App'
 
 /** "View all": every item in a category on one color chart image (long-press to save). */
 export default function ChartPage({ items, category }: { items: Product[] | null; category: string }) {
-  const cat = categoryOf(category)
+  const cat = category === 'all' ? { key: 'all', label: 'All makeup' } : categoryOf(category)
   const list = useMemo(() => (items ?? [])
-    .filter(p => p.category === cat.key)
+    .filter(p => cat.key === 'all' || p.category === cat.key)
     .sort((a, b) => hueSortKey(a.swatches[0]?.hex) - hueSortKey(b.swatches[0]?.hex)), [items, cat.key])
 
   const src = useMemo(() => list.length ? renderChart(cat.label, list) : null, [list, cat.label])
@@ -16,7 +16,7 @@ export default function ChartPage({ items, category }: { items: Product[] | null
   return (
     <div className="app">
       <div className="page-head">
-        <button className="link-btn" onClick={() => (history.length > 1 ? history.back() : go(`/?c=${cat.key}`))}>‹ Back</button>
+        <button className="link-btn" onClick={() => (history.length > 1 ? history.back() : go(cat.key === 'all' ? '/' : `/?c=${cat.key}`))}>‹ Back</button>
         <h2>{cat.label} chart</h2>
         <span style={{ width: 52 }} />
       </div>

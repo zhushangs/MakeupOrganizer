@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CATEGORIES, type Product } from '../types'
 import { hueSortKey } from '../color'
 import PaletteGrid from '../components/PaletteGrid'
@@ -13,10 +13,12 @@ const store = {
   set(k: string, v: string) { try { localStorage.setItem(k, v) } catch { /* ignore */ } },
 }
 
-export default function ListPage({ items, error, category, onChanged }: {
+export default function ListPage({ items, error, category, openItem, onChanged }: {
   items: Product[] | null
   error: string | null
   category?: string
+  /** item to show right away (e.g. coming from a "you already have this" prompt) */
+  openItem?: string
   onChanged: () => Promise<void>
 }) {
   const counts = useMemo(() => {
@@ -25,15 +27,17 @@ export default function ListPage({ items, error, category, onChanged }: {
     return m
   }, [items])
 
-  const cat = category ?? CATEGORIES.find(c => counts[c.key])?.key ?? 'lipstick'
+  const cat = category ?? 'all'
+  const total = items?.length ?? 0
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<Sort>(() => (store.get('sort') as Sort) || 'hue')
-  const [openId, setOpenId] = useState<string | null>(null)
+  const [openId, setOpenId] = useState<string | null>(openItem ?? null)
+  useEffect(() => { if (openItem) setOpenId(openItem) }, [openItem])
   const [adding, setAdding] = useState(false)
 
   const visible = useMemo(() => {
     const kw = q.trim().toLowerCase()
-    let list = (items ?? []).filter(p => p.category === cat)
+    let list = (items ?? []).filter(p => cat === 'all' || p.category === cat)
     if (kw) list = list.filter(p => [p.brand, p.name, p.shadeName, p.channel, ...p.swatches.map(s => s.label)]
       .some(x => x?.toLowerCase().includes(kw)))
     const sorted = [...list]
@@ -44,18 +48,20 @@ export default function ListPage({ items, error, category, onChanged }: {
   }, [items, cat, q, sort])
 
   const open = items?.find(p => p.id === openId)
-  const total = items?.length ?? 0
 
   return (
     <div className="app">
       <header className="top">
         <div className="title-row">
           <h1 className="title">Vanity{total > 0 && <small>{total} items</small>}</h1>
-          {(counts[cat] ?? 0) > 0 && (
+          {(cat === 'all' ? total : counts[cat] ?? 0) > 0 && (
             <button className="link-btn" onClick={() => go(`/chart?c=${cat}`)}>View all as chart</button>
           )}
         </div>
         <nav className="chips">
+          <button className={'chip' + (cat === 'all' ? ' on' : '')} onClick={() => go('/')}>
+            All{total ? <span className="n">{total}</span> : null}
+          </button>
           {CATEGORIES.map(c => (
             <button key={c.key} className={'chip' + (c.key === cat ? ' on' : '')} onClick={() => go(`/?c=${c.key}`)}>
               {c.label}{counts[c.key] ? <span className="n">{counts[c.key]}</span> : null}
@@ -122,7 +128,7 @@ export default function ListPage({ items, error, category, onChanged }: {
               <span className="ic">🧾</span>
               <span>Import from screenshots<div className="sub">Order or cart screenshots. Brand, product, shade and prices are filled in for you to check.</div></span>
             </button>
-            <button className="btn" onClick={() => go(`/new?c=${cat}`)}>
+            <button className="btn" onClick={() => go(cat === 'all' ? '/new' : `/new?c=${cat}`)}>
               <span className="ic">✏️</span>
               <span>Add one item<div className="sub">Type in the details yourself</div></span>
             </button>

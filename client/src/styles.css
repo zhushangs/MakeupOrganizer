@@ -315,3 +315,12 @@ img { display: block; max-width: 100%; }
 .check input { width: 20px; height: 20px; accent-color: var(--accent); }
 .select.small { padding: 6px 8px; font-size: 14px; }
 .ic-empty { font-size: 12px; color: var(--ink-3); }
+
+/* ---------- duplicates ---------- */
+.dup-hint { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.dup-hint .link-btn { padding: 0; font-size: 14px; }
+.dup-title { margin: 0 0 12px; font-size: 18px; }
+.dup-item { display: flex; gap: 12px; align-items: center; background: var(--bg); border-radius: 14px; padding: 10px; margin-bottom: 14px; }
+.dup-item img, .dup-swatch { width: 64px; height: 64px; border-radius: 10px; object-fit: contain; background: #fff; flex: none; }
+.dup-swatch { background: var(--empty-swatch); }
+.draft-dup { font-size: 13px; }

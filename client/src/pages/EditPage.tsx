@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { api, shrinkImage } from '../api'
 import { dominantColor } from '../color'
 import ColorSection, { resizeSwatches } from '../components/ColorSection'
+import DuplicateSheet from '../components/DuplicateSheet'
+import { findDuplicate } from '../dup'
 import { CATEGORIES, categoryOf, type Product, type ProductInput } from '../types'
 import { go } from '../App'
 
@@ -24,7 +26,8 @@ const parsePrice = (v: string) => {
   return Number.isFinite(n) ? n : null
 }
 
-export default function EditPage({ existing, initialCategory, onSaved }: {
+export default function EditPage({ items, existing, initialCategory, onSaved }: {
+  items: Product[] | null
   existing?: Product
   initialCategory?: string
   onSaved: (p: Product, isNew: boolean) => void
@@ -37,6 +40,8 @@ export default function EditPage({ existing, initialCategory, onSaved }: {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [dupPrompt, setDupPrompt] = useState<Product | null>(null)
+  const dup = useMemo(() => findDuplicate(items, f, existing?.id), [items, f.brand, f.name, f.shadeName, existing?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = <K extends keyof ProductInput>(k: K, v: ProductInput[K]) => setF(prev => ({ ...prev, [k]: v }))
 
@@ -71,8 +76,10 @@ export default function EditPage({ existing, initialCategory, onSaved }: {
     }
   }
 
-  const save = async () => {
+  const save = async (allowDuplicate = false) => {
     if (!f.brand.trim() && !f.name.trim()) { setError('Please enter at least a brand or a product name'); return }
+    if (dup && !allowDuplicate) { setDupPrompt(dup); return }
+    setDupPrompt(null)
     setSaving(true); setError(null)
     try {
       const body: ProductInput = { ...f, originalPrice: parsePrice(orig), paidPrice: parsePrice(paid) }
@@ -112,6 +119,12 @@ export default function EditPage({ existing, initialCategory, onSaved }: {
             <input className="input" value={f.name} onChange={e => set('name', e.target.value)} placeholder="Matte Lipstick" autoCapitalize="words" /></div>
           <div className="field"><label>{f.gridRows * f.gridCols > 1 ? 'Palette / shade name' : 'Shade'}</label>
             <input className="input" value={f.shadeName ?? ''} onChange={e => set('shadeName', e.target.value)} placeholder="Ruby Woo" autoCapitalize="words" /></div>
+          {dup && (
+            <div className="warn dup-hint">
+              You already have <b>{[dup.brand, dup.shadeName || dup.name].filter(Boolean).join(' · ')}</b>.{' '}
+              <button type="button" className="link-btn" onClick={() => go(`/?open=${dup.id}`)}>View it</button>
+            </div>
+          )}
         </div>
 
         <div className="card">
@@ -165,8 +178,13 @@ export default function EditPage({ existing, initialCategory, onSaved }: {
         {error && <div className="err">{error}</div>}
       </div>
 
+      {dupPrompt && (
+        <DuplicateSheet existing={dupPrompt} onClose={() => setDupPrompt(null)}
+          onView={() => go(`/?open=${dupPrompt.id}`)} onAddAnyway={() => save(true)} />
+      )}
+
       <div className="save-bar">
-        <button className="btn primary" onClick={save} disabled={saving}>
+        <button className="btn primary" onClick={() => save()} disabled={saving}>
           {saving ? <span className="spinner" /> : existing ? 'Save changes' : 'Save & find a picture'}
         </button>
       </div>
