@@ -10,6 +10,23 @@ import { go } from '../App'
 const defaultQuery = (p: Product) => [p.brand, p.name, p.shadeName].filter(Boolean).join(' ')
 
 /**
+ * Search results are kept for the browser session, so reopening this page, coming back to it, or the
+ * home-screen app reloading itself (iPhone does that after a while in the background) shows the earlier
+ * results instead of spending another Serper credit on the same search.
+ */
+const CACHE_PREFIX = 'image-search:'
+const cacheKey = (q: string) => CACHE_PREFIX + q.trim().toLowerCase().replace(/\s+/g, ' ')
+function cachedHits(q: string): ImageSearchHit[] | null {
+  try {
+    const v = sessionStorage.getItem(cacheKey(q))
+    return v ? (JSON.parse(v) as ImageSearchHit[]) : null
+  } catch { return null }
+}
+function rememberHits(q: string, hits: ImageSearchHit[]) {
+  try { sessionStorage.setItem(cacheKey(q), JSON.stringify(hits)) } catch { /* storage full or blocked */ }
+}
+
+/**
  * Step after saving an item: search the web for a picture, pick one,
  * then confirm/adjust the color card that's auto-generated from it.
  */
@@ -28,16 +45,29 @@ export default function ImagePage({ product, isNew, onDone }: {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  // a ref, not state: blocks a second request even within the same render (double Enter, Enter + tap)
+  const inFlight = useRef(false)
+  const autoSearched = useRef(false)
 
   const search = async (q = query) => {
-    if (!q.trim()) return
+    if (!q.trim() || inFlight.current) return
+    const cached = cachedHits(q)
+    if (cached) { setHits(cached); setError(null); return }
+    inFlight.current = true
     setSearching(true); setError(null)
-    try { setHits(await api.searchImages(q)) }
+    try {
+      const found = await api.searchImages(q)
+      setHits(found)
+      rememberHits(q, found)
+    }
     catch (e) { setError((e as Error).message); setHits(null) }
-    finally { setSearching(false) }
+    finally { inFlight.current = false; setSearching(false) }
   }
 
   useEffect(() => {
+    // React StrictMode runs effects twice in development; only search once
+    if (autoSearched.current) return
+    autoSearched.current = true
     api.searchStatus().then(s => {
       setConfigured(s.configured)
       if (s.configured && query.trim()) search(query)
@@ -93,7 +123,7 @@ export default function ImagePage({ product, isNew, onDone }: {
           <div className="card">
             <div className="link-row">
               <input className="input" type="search" value={query} onChange={e => setQuery(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && search()} placeholder="Brand, product, shade" />
+                onKeyDown={e => e.key === 'Enter' && !e.nativeEvent.isComposing && search()} placeholder="Brand, product, shade" />
               <button className="btn primary" onClick={() => search()} disabled={searching || !configured || !query.trim()}>
                 {searching ? <span className="spinner" /> : 'Search'}
               </button>

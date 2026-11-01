@@ -6,6 +6,21 @@ It runs on Cloudflare (Workers + D1 + R2): always on, works anywhere, nothing to
 
 > The earlier ASP.NET Core version (`server/`, `start.bat`) is **no longer used or maintained**. See [Legacy PC version](#legacy-pc-version-no-longer-used).
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/home.webp" width="220" alt="Home: items as color cards"><br><sub>Home: every item as a color card</sub></td>
+    <td align="center"><img src="docs/screenshots/list.webp" width="220" alt="Home: list view"><br><sub>Or as a list</sub></td>
+    <td align="center"><img src="docs/screenshots/detail.webp" width="220" alt="Item details with a two-color blush"><br><sub>Details: a two-color blush</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/palette.webp" width="220" alt="Picking palette colors from the product picture"><br><sub>Palette layout + eyedropper on the picture</sub></td>
+    <td align="center"><img src="docs/screenshots/chart.webp" width="220" alt="Blush color chart"><br><sub>A category as one color chart</sub></td>
+    <td></td>
+  </tr>
+</table>
+
 ## Structure
 
 ```
@@ -16,6 +31,7 @@ worker/                      Cloudflare Worker backend (TypeScript): API + D1 da
 server/MakeupOrganizer.Api   LEGACY ASP.NET Core backend, not used anymore
   └─ wwwroot/                STILL USED: the frontend build output that the Worker serves
 backups/                     Cloudflare backups made by `npm run backup` (git-ignored)
+docs/screenshots/            Screenshots used in this README
 start.bat                    LEGACY: starts the old ASP.NET Core version
 ```
 

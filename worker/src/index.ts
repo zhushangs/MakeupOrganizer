@@ -312,7 +312,8 @@ async function handleApi(req: Request, env: Env, url: URL): Promise<Response> {
     const res = await fetch(`${env.SERPER_BASE_URL || 'https://google.serper.dev'}/images`, {
       method: 'POST',
       headers: { 'X-API-KEY': env.SERPER_API_KEY, 'content-type': 'application/json' },
-      body: JSON.stringify({ q: query.trim(), num: 20 }),
+      // num 10, not more: Serper bills a request for 11–100 results as 2 credits
+      body: JSON.stringify({ q: query.trim(), num: 10 }),
     })
     if (!res.ok) {
       return error(res.status === 401 || res.status === 403 ? 'The Serper API key was rejected.'

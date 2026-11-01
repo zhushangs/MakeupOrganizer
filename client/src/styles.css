@@ -303,6 +303,9 @@ img { display: block; max-width: 100%; }
 
 /* ---------- settings ---------- */
 .title-row .spacer { flex: 1; }
+/* keep the home header on one line on phone widths ("331 items" and "View all as chart" used to wrap) */
+.title-row { gap: 8px; }
+.title, .title small, .title-row .link-btn { white-space: nowrap; }
 .icon-btn { border: 0; background: none; color: var(--ink-2); padding: 4px; margin-left: 4px; display: grid; place-items: center; align-self: center; }
 .chip.add { border-style: dashed; color: var(--accent); }
 .new-cat { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }

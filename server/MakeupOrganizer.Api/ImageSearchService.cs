@@ -37,7 +37,7 @@ public class ImageSearchService
         using var req = new HttpRequestMessage(HttpMethod.Post, BaseUrl + "/images")
         {
             // Buffered (not chunked) body with an explicit Content-Length
-            Content = new StringContent(JsonSerializer.Serialize(new { q = query, num = 20 }), System.Text.Encoding.UTF8, "application/json")
+            Content = new StringContent(JsonSerializer.Serialize(new { q = query, num = 10 }), System.Text.Encoding.UTF8, "application/json")
         };
         req.Headers.Add("X-API-KEY", key);
 
