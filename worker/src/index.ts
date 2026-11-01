@@ -42,6 +42,8 @@ interface Product {
   layout?: number[] | null
   swatches: Swatch[]
   noColor?: boolean
+  /** marked with a heart: something the user likes / finds works well */
+  favorite?: boolean
   notes?: string | null
   createdAt: string
   updatedAt: string
@@ -146,6 +148,7 @@ function normalizeProduct(input: any, id: string, createdAt: string): Product {
     layout,
     swatches,
     noColor: !!input?.noColor,
+    favorite: !!input?.favorite,
     notes: optStr(input?.notes),
     createdAt,
     updatedAt: new Date().toISOString(),

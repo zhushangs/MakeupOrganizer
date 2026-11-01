@@ -209,7 +209,7 @@ export default function ImportPage({ items, brands, onSaved, onChanged }: {
       </div>
 
       <datalist id="brand-list">{brands.map(b => <option key={b} value={b} />)}</datalist>
-      {viewing && <DetailSheet p={viewing} onClose={() => setViewing(null)} onDeleted={async () => { setViewing(null); await onChanged() }} />}
+      {viewing && <DetailSheet p={viewing} onClose={() => setViewing(null)} onDeleted={async () => { setViewing(null); await onChanged() }} onChanged={onChanged} />}
 
       {rows.length > 0 && (
         <div className="save-bar">

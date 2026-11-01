@@ -407,3 +407,25 @@ img { display: block; max-width: 100%; }
 .lr-meta { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; max-width: 34%; }
 .lr-price { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .lr-cat { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+/* ---------- favorites (heart) ---------- */
+.fav-filter {
+  flex: none; width: 40px; border: 1px solid var(--line); background: var(--surface); border-radius: 10px;
+  display: grid; place-items: center; color: var(--ink-3); padding: 0;
+}
+.fav-filter.on { color: #e0405e; border-color: color-mix(in srgb, #e0405e 45%, var(--line)); background: color-mix(in srgb, #e0405e 10%, var(--surface)); }
+.d-pane { position: relative; }
+.d-fav {
+  position: absolute; top: 0; right: 0; z-index: 2; width: 40px; height: 40px; border-radius: 50%;
+  border: 0; background: var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, .15); color: var(--ink-3);
+  display: grid; place-items: center; padding: 0;
+}
+.d-fav.on { color: #e0405e; }
+.d-fav:active { transform: scale(.9); }
+.ic-fav {
+  position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; background: #fff;
+  color: #e0405e; display: grid; place-items: center; box-shadow: 0 1px 3px rgba(0, 0, 0, .2);
+}
+.fav-mark { color: #e0405e; margin-right: 4px; display: inline-flex; vertical-align: -1px; }
+
+.chart-scope { display: flex; justify-content: center; margin: 4px 0 12px; }

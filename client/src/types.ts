@@ -22,6 +22,8 @@ export interface Product {
   swatches: Swatch[]
   /** clear / colorless product: no color card, the product photo is shown instead */
   noColor?: boolean
+  /** marked with a heart: something you like / find works well */
+  favorite?: boolean
   notes?: string | null
   createdAt: string
   updatedAt: string

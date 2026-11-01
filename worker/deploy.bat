@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
-rem Builds the frontend, applies new database migrations and deploys to Cloudflare.
-rem Double-click to run. If it asks about applying migrations, type y and press Enter.
+rem Builds the frontend and deploys the Worker to Cloudflare. Double-click to run.
+rem (Plain "npx wrangler deploy" skips the frontend build, so UI changes would not go live.)
 cd /d "%~dp0"
 call npm run deploy
 echo.

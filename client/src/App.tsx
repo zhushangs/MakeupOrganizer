@@ -15,7 +15,7 @@ type Route =
   | { name: 'new'; category?: string }
   | { name: 'edit'; id: string }
   | { name: 'image'; id: string; isNew: boolean }
-  | { name: 'chart'; category: string }
+  | { name: 'chart'; category: string; favOnly: boolean }
   | { name: 'import' }
   | { name: 'settings' }
 
@@ -29,7 +29,7 @@ function parseHash(): Route {
   if (parts[0] === 'image' && parts[1]) return { name: 'image', id: parts[1], isNew: q.get('new') === '1' }
   if (parts[0] === 'import') return { name: 'import' }
   if (parts[0] === 'settings') return { name: 'settings' }
-  if (parts[0] === 'chart') return { name: 'chart', category: q.get('c') ?? 'all' }
+  if (parts[0] === 'chart') return { name: 'chart', category: q.get('c') ?? 'all', favOnly: q.get('fav') === '1' }
   return { name: 'list', category: q.get('c') ?? undefined, open: q.get('open') ?? undefined }
 }
 
@@ -85,7 +85,7 @@ export default function App() {
     case 'list':
       return <ListPage items={items} error={error} category={route.category} openItem={route.open} onChanged={reload} />
     case 'chart':
-      return <ChartPage items={items} category={route.category} />
+      return <ChartPage items={items} category={route.category} favOnly={route.favOnly} />
     case 'settings':
       return <SettingsPage items={items} settings={settings} onSave={saveSettings} />
     case 'import':

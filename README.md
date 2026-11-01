@@ -26,7 +26,7 @@ It runs on Cloudflare (Workers + D1 + R2): always on, works anywhere, nothing to
 ```
 client/                      React + Vite frontend source
 worker/                      Cloudflare Worker backend (TypeScript): API + D1 database + R2 pictures
-  ├─ migrations/             D1 tables (applied by npm run deploy)
+  ├─ migrations/             D1 tables (npm run setup / npm run migrate-db)
   └─ scripts/                setup, deploy helpers, data migration, backup
 server/MakeupOrganizer.Api   LEGACY ASP.NET Core backend, not used anymore
   └─ wwwroot/                STILL USED: the frontend build output that the Worker serves
@@ -45,6 +45,7 @@ start.bat                    LEGACY: starts the old ASP.NET Core version
 - Blush, contour and other non-palette products can have 2–4 colors (side by side, top & bottom, or in quarters): pick one under **Colors** in the color step.
 - **Categories & brands** (gear icon on the home page): add, rename, reorder or remove categories (a category can be marked as a palette with a default layout; one in use can't be removed), and keep your own brand list. Your brands and every brand you already own are suggested when typing and recognized in screenshot import. You can also add a category on the spot with **+ New** when adding an item.
 - Home shows items as cards or as a list (toggle next to the sort menu). On a phone, swipe left/right on the list to go to the next/previous category.
+- **Favorites**: tap the ♡ in an item's details to mark it as something you like (tap again to unmark). The ♡ button next to the search box shows only hearted items, in whichever category is selected; the chip counts and **View all as chart** follow it.
 - Item details open as a sheet: swipe left/right (or use ‹ ›) for the next/previous item in the list as shown (same category, search and sort), and swipe down to close it.
 - **View all as chart** shows the category as one color chart, sorted by color. From **All**, the chart is split into one section per category; a big collection is split into several images so each can be saved on a phone.
 - Clear / colorless products: tick **No color card** in the color step (or in Edit). The product picture is shown instead of a color everywhere (home, details, saved card, chart).
@@ -113,13 +114,13 @@ cd worker
 npm run deploy
 ```
 
-`deploy` builds the frontend, applies any new database migrations (`npm run migrate-db`; confirm with `y` if it asks) and deploys the Worker.
+`deploy` builds the frontend (into `server/MakeupOrganizer.Api/wwwroot`) and deploys the Worker. Plain `npx wrangler deploy` uploads whatever was built last, so frontend changes only go live after a build. Database tables are created by `npm run setup`; the sign-in lockout table is also created by the Worker itself, so deploying never needs `npm run migrate-db`.
 
 ### Notes
 
 - Pictures that were downloaded or uploaded but never saved to an item are cleaned up daily (cron trigger).
 - Image search asks Serper for 10 pictures per search: more than 10 is billed as 2 credits.
-- `The given account is not valid or is not authorized to access this service [code: 7403]` when deploying usually means the wrangler sign-in expired: run `npx wrangler logout`, then `npx wrangler login` with the Cloudflare account the app was set up with, and deploy again. `npx wrangler whoami` shows which account you're signed in to.
+- `The given account is not valid or is not authorized to access this service [code: 7403]` from a `wrangler d1 …` command (migrate-db, backup) means the wrangler sign-in can deploy Workers but isn't allowed to use D1: run `npx wrangler whoami` to check the account and token permissions, check that no `CLOUDFLARE_API_TOKEN` environment variable with fewer permissions is set, or `npx wrangler logout` and `npx wrangler login` again. Deploying doesn't need D1 access.
 
 ## Changing the frontend (requires Node.js 18+)
 

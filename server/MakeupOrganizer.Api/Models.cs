@@ -41,6 +41,9 @@ public class Product
     /// <summary>Clear / colorless product: no color card, the product picture is shown instead</summary>
     public bool NoColor { get; set; }
 
+    /// <summary>Marked with a heart: something the user likes</summary>
+    public bool Favorite { get; set; }
+
     /// <summary>Free-form notes / how it wears</summary>
     public string? Notes { get; set; }
     public DateTimeOffset CreatedAt { get; set; }

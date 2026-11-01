@@ -74,9 +74,21 @@ function cookie(value: string, maxAge: number, secure: boolean) {
 
 // ---------------------------------------------------------------- lockout
 
+/**
+ * The Worker creates its own table (same as migrations/0002_login_attempts.sql), so the lockout works
+ * even if `wrangler d1 migrations apply` never ran (it needs extra API permissions the deploy doesn't).
+ * Done once per Worker instance, and only when someone actually signs in.
+ */
+let tableReady: Promise<unknown> | null = null
+const ensureTable = (db: D1Database) =>
+  (tableReady ??= db.prepare(
+    'CREATE TABLE IF NOT EXISTS login_attempts (key TEXT PRIMARY KEY, fails INTEGER NOT NULL, window_start INTEGER NOT NULL)',
+  ).run().catch(e => { tableReady = null; throw e }))
+
 /** Seconds until sign-in is allowed again for this IP (0 = allowed now) */
 async function lockedFor(db: D1Database, ip: string): Promise<number> {
   try {
+    await ensureTable(db)
     const now = Math.floor(Date.now() / 1000)
     const { results } = await db.prepare('SELECT key, fails, window_start FROM login_attempts WHERE key IN (?1, ?2)')
       .bind(ip, ALL).all<{ key: string; fails: number; window_start: number }>()
@@ -88,7 +100,7 @@ async function lockedFor(db: D1Database, ip: string): Promise<number> {
     }
     return wait
   } catch (e) {
-    // e.g. the login_attempts table hasn't been created yet (`npm run migrate-db`)
+    // e.g. the database is unreachable: don't lock the owner out because of that
     console.error('Login lockout check failed:', e)
     return 0
   }
@@ -101,6 +113,7 @@ async function recordFailure(db: D1Database, ip: string) {
     'fails = CASE WHEN ?2 - window_start >= ?3 THEN 1 ELSE fails + 1 END, ' +
     'window_start = CASE WHEN ?2 - window_start >= ?3 THEN ?2 ELSE window_start END'
   try {
+    await ensureTable(db)
     await db.batch([db.prepare(sql).bind(ip, now, LOCK_WINDOW), db.prepare(sql).bind(ALL, now, LOCK_WINDOW)])
   } catch (e) {
     console.error('Recording a failed sign-in failed:', e)

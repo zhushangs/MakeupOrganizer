@@ -3,7 +3,7 @@ import { categoryOf, getCategories, type Product } from '../types'
 import { hueSortKey } from '../color'
 import PaletteGrid from '../components/PaletteGrid'
 import { isMulti } from '../layout'
-import DetailSheet, { formatPrice } from '../components/DetailSheet'
+import DetailSheet, { formatPrice, Heart } from '../components/DetailSheet'
 import Sheet from '../components/Sheet'
 import { go } from '../App'
 
@@ -37,14 +37,20 @@ export default function ListPage({ items, error, category, openItem, onChanged }
   openItem?: string
   onChanged: () => Promise<void>
 }) {
+  /** only items marked with a heart (in whichever category is selected); remembered on this device */
+  const [favOnly, setFavOnly] = useState(() => store.get('favOnly') === '1')
+  const toggleFavOnly = () => setFavOnly(v => { store.set('favOnly', v ? '0' : '1'); return !v })
+
+  // chip counts follow the heart filter
   const counts = useMemo(() => {
     const m: Record<string, number> = {}
-    for (const p of items ?? []) m[p.category] = (m[p.category] ?? 0) + 1
+    for (const p of items ?? []) if (!favOnly || p.favorite) m[p.category] = (m[p.category] ?? 0) + 1
     return m
-  }, [items])
+  }, [items, favOnly])
 
   const cat = category ?? 'all'
   const total = items?.length ?? 0
+  const allCount = favOnly ? (items ?? []).filter(p => p.favorite).length : total
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<Sort>(() => (store.get('sort') as Sort) || 'hue')
   const [view, setView] = useState<View>(() => (store.get('view') === 'list' ? 'list' : 'cards'))
@@ -55,14 +61,14 @@ export default function ListPage({ items, error, category, openItem, onChanged }
 
   const visible = useMemo(() => {
     const kw = q.trim().toLowerCase()
-    let list = (items ?? []).filter(p => cat === 'all' || p.category === cat)
+    let list = (items ?? []).filter(p => (cat === 'all' || p.category === cat) && (!favOnly || p.favorite))
     if (kw) list = list.filter(p => matches(p, kw))
     const sorted = [...list]
     if (sort === 'hue') sorted.sort((a, b) => (a.noColor ? 1 : 0) - (b.noColor ? 1 : 0) || hueSortKey(a.swatches[0]?.hex) - hueSortKey(b.swatches[0]?.hex))
     if (sort === 'brand') sorted.sort((a, b) => a.brand.localeCompare(b.brand) || (a.shadeName ?? '').localeCompare(b.shadeName ?? ''))
     // 'new': the backend already returns newest first
     return sorted
-  }, [items, cat, q, sort])
+  }, [items, cat, q, sort, favOnly])
 
   const open = items?.find(p => p.id === openId)
   // position in the list as shown (current category, search and sort), for swiping between items
@@ -108,8 +114,8 @@ export default function ListPage({ items, error, category, openItem, onChanged }
         <div className="title-row">
           <h1 className="title">Vanity{total > 0 && <small>{total} {total === 1 ? "item" : "items"}</small>}</h1>
           <span className="spacer" />
-          {(cat === 'all' ? total : counts[cat] ?? 0) > 0 && (
-            <button className="link-btn" onClick={() => go(`/chart?c=${cat}`)}>View all as chart</button>
+          {(cat === 'all' ? allCount : counts[cat] ?? 0) > 0 && (
+            <button className="link-btn" onClick={() => go(`/chart?c=${cat}${favOnly ? '&fav=1' : ''}`)}>View all as chart</button>
           )}
           <button className="icon-btn" aria-label="Settings: categories and brands" onClick={() => go('/settings')}>
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -120,7 +126,7 @@ export default function ListPage({ items, error, category, openItem, onChanged }
         </div>
         <nav className="chips">
           <button className={'chip' + (cat === 'all' ? ' on' : '')} onClick={() => go('/')}>
-            All{total ? <span className="n">{total}</span> : null}
+            All{allCount ? <span className="n">{allCount}</span> : null}
           </button>
           {getCategories().map(c => (
             <button key={c.key} className={'chip' + (c.key === cat ? ' on' : '')} onClick={() => go(`/?c=${c.key}`)}>
@@ -130,6 +136,10 @@ export default function ListPage({ items, error, category, openItem, onChanged }
         </nav>
         <div className="tools">
           <input className="search" placeholder="Search brand, name, shade" value={q} onChange={e => setQ(e.target.value)} type="search" />
+          <button type="button" className={'fav-filter' + (favOnly ? ' on' : '')} onClick={toggleFavOnly}
+            aria-pressed={favOnly} aria-label="Only items with a heart" title="Only items with a heart">
+            <Heart filled={favOnly} size={18} />
+          </button>
           <select className="select" value={sort} onChange={e => { setSort(e.target.value as Sort); store.set('sort', e.target.value) }}>
             <option value="hue">By color</option>
             <option value="new">Newest</option>
@@ -159,8 +169,10 @@ export default function ListPage({ items, error, category, openItem, onChanged }
       {!error && items === null && <div className="empty">Loading…</div>}
       {!error && items && visible.length === 0 && (
         <div className="empty">
-          <div className="big">🫙</div>
-          {q ? 'No matches' : 'Nothing here yet. Tap + to add one.'}
+          <div className="big">{favOnly && !q ? '♡' : '🫙'}</div>
+          {q ? 'No matches'
+            : favOnly ? <>No hearts here yet. Open an item and tap ♡ to mark it as a favorite.</>
+            : 'Nothing here yet. Tap + to add one.'}
         </div>
       )}
 
@@ -173,7 +185,7 @@ export default function ListPage({ items, error, category, openItem, onChanged }
                 <RowSwatch p={p} />
                 <span className="lr-text">
                   <span className="lr-brand">{p.brand}</span>
-                  <span className="lr-shade">{p.shadeName || p.name}</span>
+                  <span className="lr-shade">{p.favorite && <span className="fav-mark"><Heart filled size={13} /></span>}{p.shadeName || p.name}</span>
                   {p.shadeName && p.name && <span className="lr-name">{p.name}</span>}
                 </span>
                 {(price || cat === 'all') && (
@@ -206,6 +218,7 @@ export default function ListPage({ items, error, category, openItem, onChanged }
                       ? <img src={p.imagePath} alt="" loading="lazy" />
                       : <span className="ic-empty">{p.noColor ? 'No picture yet' : 'No color yet'}</span>)}
                   {p.imagePath && (multi || hex) && <img className="ic-thumb" src={p.imagePath} alt="" loading="lazy" />}
+                  {p.favorite && <span className="ic-fav" aria-label="Favorite"><Heart filled size={15} /></span>}
                 </div>
                 <div className="ic-text">
                   <div className="ic-brand">{p.brand}</div>
@@ -224,7 +237,7 @@ export default function ListPage({ items, error, category, openItem, onChanged }
 
       {open && (
         <DetailSheet p={open} onClose={() => setOpenId(null)}
-          onDeleted={async () => { setOpenId(null); await onChanged() }}
+          onDeleted={async () => { setOpenId(null); await onChanged() }} onChanged={onChanged}
           nav={openIndex < 0 ? undefined : {
             index: openIndex,
             total: visible.length,

@@ -7,7 +7,7 @@
     "dev": "wrangler dev",
     "setup": "node scripts/setup.mjs",
     "migrate-data": "node scripts/migrate-data.mjs",
-    "deploy": "npm run build:client && npm run migrate-db && wrangler deploy",
+    "deploy": "npm run build:client && wrangler deploy",
     "typecheck": "tsc --noEmit",
     "set-password": "wrangler secret put APP_PASSWORD",
     "migrate-db": "wrangler d1 migrations apply makeup-organizer --remote",
