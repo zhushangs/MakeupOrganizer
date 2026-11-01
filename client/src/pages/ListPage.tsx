@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type TouchEvent } from 'react'
 import { categoryOf, getCategories, type Product } from '../types'
 import { hueSortKey } from '../color'
 import PaletteGrid from '../components/PaletteGrid'
@@ -66,8 +66,42 @@ export default function ListPage({ items, error, category, openItem, onChanged }
 
   const open = items?.find(p => p.id === openId)
 
+  // Swipe left/right on the list to go to the next/previous category (same order as the chips)
+  const swipeStart = useRef<{ x: number; y: number; t: number } | null>(null)
+  const [slide, setSlide] = useState<'from-right' | 'from-left' | null>(null)
+  const onTouchStart = (e: TouchEvent) => {
+    const t = e.touches[0]
+    const target = e.target as Element
+    // not with two fingers, not from the screen edges (Safari's back/forward swipe), not on the chip row
+    // (it scrolls sideways itself), form fields, or an open sheet
+    if (e.touches.length !== 1 || t.clientX < 24 || t.clientX > window.innerWidth - 24
+      || target.closest('.chips, .sheet, .scrim, input, select, textarea')) { swipeStart.current = null; return }
+    swipeStart.current = { x: t.clientX, y: t.clientY, t: Date.now() }
+  }
+  const onTouchEnd = (e: TouchEvent) => {
+    const s = swipeStart.current
+    swipeStart.current = null
+    if (!s || open || adding) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - s.x, dy = t.clientY - s.y
+    // a quick, clearly sideways swipe; anything else is scrolling
+    if (Date.now() - s.t > 600 || Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+    const order = ['all', ...getCategories().map(c => c.key)]
+    const i = Math.max(0, order.indexOf(cat))
+    const next = order[i + (dx < 0 ? 1 : -1)]
+    if (!next) return
+    setSlide(dx < 0 ? 'from-right' : 'from-left')
+    // replace, not push: swiping through categories shouldn't fill the back history
+    location.replace('#' + (next === 'all' ? '/' : `/?c=${next}`))
+  }
+
+  // keep the selected chip in view when the category changes (by swipe or tap)
+  useEffect(() => {
+    document.querySelector('.chips .chip.on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+  }, [cat])
+
   return (
-    <div className="app">
+    <div className="app" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       <header className="top">
         <div className="title-row">
           <h1 className="title">Vanity{total > 0 && <small>{total} {total === 1 ? "item" : "items"}</small>}</h1>
@@ -118,6 +152,7 @@ export default function ListPage({ items, error, category, openItem, onChanged }
         </div>
       </header>
 
+      <div key={cat} className={'swipe-pane' + (slide ? ' ' + slide : '')} onAnimationEnd={() => setSlide(null)}>
       {error && <div className="empty">Can't reach the server: {error}</div>}
       {!error && items === null && <div className="empty">Loading…</div>}
       {!error && items && visible.length === 0 && (
@@ -180,6 +215,8 @@ export default function ListPage({ items, error, category, openItem, onChanged }
           })}
         </div>
       )}
+
+      </div>
 
       <button className="fab" aria-label="Add" onClick={() => setAdding(true)}>+</button>
 
