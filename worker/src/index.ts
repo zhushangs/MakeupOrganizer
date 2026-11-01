@@ -7,6 +7,7 @@
  */
 
 import { checkAuth } from './auth'
+import { OTHER_RANK, preferredSites, rankSource, restrictToSites } from './sources'
 
 export interface Env {
   DB: D1Database
@@ -236,6 +237,55 @@ async function downloadImage(env: Env, url: string): Promise<string | null> {
   }
 }
 
+// ---------------------------------------------------------------- image search (Serper.dev)
+
+interface ImageHit {
+  imageUrl: string; thumbnailUrl: string | null; title: string | null; source: string | null
+  width: number | null; height: number | null
+  /** page the picture is on */
+  link: string | null
+  /** 0 brand's own site, 1 Sephora/Ulta, 2 department store, 3 Temptalia, 4 anything else */
+  rank: number
+  /** short source name shown on the picture ("Official", "Sephora"…) */
+  label: string | null
+}
+
+/** Fewer preferred-site results than this and the search is widened to everywhere */
+const MIN_PREFERRED_HITS = 3
+
+async function serperImages(env: Env, q: string, brand: string | null): Promise<ImageHit[]> {
+  const res = await fetch(`${env.SERPER_BASE_URL || 'https://google.serper.dev'}/images`, {
+    method: 'POST',
+    headers: { 'X-API-KEY': env.SERPER_API_KEY!, 'content-type': 'application/json' },
+    // num 10, not more: Serper bills a request for 11–100 results as 2 credits
+    body: JSON.stringify({ q, num: 10 }),
+  })
+  if (!res.ok) {
+    throw new HttpError(res.status === 401 || res.status === 403 ? 'The Serper API key was rejected.'
+      : res.status === 429 ? 'Serper rate limit or free credits used up.' : `Image search failed (${res.status}).`)
+  }
+  const data = await res.json<{ images?: any[] }>()
+  return sortHits((data.images ?? [])
+    .filter(i => typeof i?.imageUrl === 'string' && i.imageUrl.startsWith('http'))
+    .map(i => {
+      const link = typeof i.link === 'string' ? i.link : null
+      const { rank, label } = rankSource(link, i.imageUrl, brand)
+      return {
+        imageUrl: i.imageUrl, thumbnailUrl: i.thumbnailUrl ?? null, title: i.title ?? null,
+        source: i.source ?? i.domain ?? null, width: i.imageWidth ?? null, height: i.imageHeight ?? null,
+        link, rank, label,
+      }
+    }))
+}
+
+/** Best sources first; within a source, keep Google's order (Array.prototype.sort is stable) */
+const sortHits = (hits: ImageHit[]) => [...hits].sort((a, b) => (a.rank ?? OTHER_RANK) - (b.rank ?? OTHER_RANK))
+
+function mergeHits(first: ImageHit[], more: ImageHit[]) {
+  const seen = new Set(first.map(h => h.imageUrl))
+  return sortHits([...first, ...more.filter(h => !seen.has(h.imageUrl))])
+}
+
 // ---------------------------------------------------------------- routes
 
 async function handleApi(req: Request, env: Env, url: URL): Promise<Response> {
@@ -306,27 +356,19 @@ async function handleApi(req: Request, env: Env, url: URL): Promise<Response> {
   // image search (Serper.dev)
   if (path === '/api/image-search/status' && method === 'GET') return json({ configured: !!env.SERPER_API_KEY })
   if (path === '/api/image-search' && method === 'POST') {
-    const { query } = await readJson<{ query: string }>(req)
-    if (typeof query !== 'string' || !query.trim()) return error('Enter something to search for')
+    const body = await readJson<{ query: string; brand: string; scope: string }>(req)
+    const query = typeof body.query === 'string' ? body.query.trim() : ''
+    const brand = typeof body.brand === 'string' ? body.brand : null
+    if (!query) return error('Enter something to search for')
     if (!env.SERPER_API_KEY) return error('Image search isn\'t set up yet. Add the SERPER_API_KEY secret (see README).')
-    const res = await fetch(`${env.SERPER_BASE_URL || 'https://google.serper.dev'}/images`, {
-      method: 'POST',
-      headers: { 'X-API-KEY': env.SERPER_API_KEY, 'content-type': 'application/json' },
-      // num 10, not more: Serper bills a request for 11–100 results as 2 credits
-      body: JSON.stringify({ q: query.trim(), num: 10 }),
-    })
-    if (!res.ok) {
-      return error(res.status === 401 || res.status === 403 ? 'The Serper API key was rejected.'
-        : res.status === 429 ? 'Serper rate limit or free credits used up.' : `Image search failed (${res.status}).`)
-    }
-    const data = await res.json<{ images?: any[] }>()
-    const hits = (data.images ?? [])
-      .filter(i => typeof i?.imageUrl === 'string' && i.imageUrl.startsWith('http'))
-      .map(i => ({
-        imageUrl: i.imageUrl, thumbnailUrl: i.thumbnailUrl ?? null, title: i.title ?? null,
-        source: i.source ?? i.domain ?? null, width: i.imageWidth ?? null, height: i.imageHeight ?? null,
-      }))
-    return json(hits)
+
+    // "all": search everywhere (the user asked for more). Otherwise first only the brand's site, Sephora,
+    // Ulta, department stores and Temptalia; if that finds almost nothing, also search everywhere.
+    if (body.scope === 'all') return json({ hits: await serperImages(env, query, brand), scope: 'all' })
+    const preferred = await serperImages(env, restrictToSites(query, preferredSites(brand)), brand)
+    if (preferred.length >= MIN_PREFERRED_HITS) return json({ hits: preferred, scope: 'preferred' })
+    const everywhere = await serperImages(env, query, brand)
+    return json({ hits: mergeHits(preferred, everywhere), scope: 'expanded' })
   }
 
   return error('Not found', 404)

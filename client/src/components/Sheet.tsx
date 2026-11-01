@@ -23,7 +23,7 @@ export default function Sheet({ onClose, children }: { onClose: () => void; chil
   useEffect(() => {
     const el = sheetRef.current
     if (!el) return
-    let start: { y: number; t: number; canDrag: boolean } | null = null
+    let start: { x: number; y: number; t: number; canDrag: boolean } | null = null
     let dragging = false
     let dy = 0
 
@@ -38,7 +38,7 @@ export default function Sheet({ onClose, children }: { onClose: () => void; chil
     const onStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) { start = null; return }
       // only when the sheet is at its top; otherwise the swipe scrolls the sheet's content
-      start = { y: e.touches[0].clientY, t: Date.now(), canDrag: el.scrollTop <= 0 }
+      start = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), canDrag: el.scrollTop <= 0 }
       dragging = false
       dy = 0
     }
@@ -46,6 +46,8 @@ export default function Sheet({ onClose, children }: { onClose: () => void; chil
       if (!start?.canDrag) return
       const d = e.touches[0].clientY - start.y
       if (!dragging) {
+        // a sideways swipe (e.g. to the next item) is not a drag down
+        if (Math.abs(e.touches[0].clientX - start.x) > Math.abs(d)) { start.canDrag = false; return }
         if (d > 8) dragging = true
         else { if (d < -8) start.canDrag = false; return } // moving up: let the content scroll
       }

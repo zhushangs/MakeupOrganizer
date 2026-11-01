@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState, type TouchEvent } from 'react'
 import { api } from '../api'
 import { renderProductCard } from '../cards'
 import type { Product } from '../types'
@@ -14,10 +14,19 @@ export function formatPrice(price?: number | null, currency?: string | null) {
   return sym + (Number.isInteger(price) ? price : price.toFixed(2))
 }
 
-export default function DetailSheet({ p, onClose, onDeleted }: {
+/** Where this item sits in the list it was opened from, for swiping to the previous/next one */
+export interface DetailNav {
+  index: number
+  total: number
+  onPrev?: () => void
+  onNext?: () => void
+}
+
+export default function DetailSheet({ p, onClose, onDeleted, nav }: {
   p: Product
   onClose: () => void
   onDeleted: () => void
+  nav?: DetailNav
 }) {
   const [confirm, setConfirm] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -28,6 +37,31 @@ export default function DetailSheet({ p, onClose, onDeleted }: {
   const paid = formatPrice(p.paidPrice, p.currency)
   const saved = p.originalPrice && p.paidPrice != null && p.paidPrice < p.originalPrice
     ? Math.round((1 - p.paidPrice / p.originalPrice) * 100) : null
+
+  // Swipe left/right to the next/previous item in the list (the sheet itself stays open)
+  const paneRef = useRef<HTMLDivElement>(null)
+  const swipe = useRef<{ x: number; y: number; t: number } | null>(null)
+  const [dir, setDir] = useState<'from-right' | 'from-left' | null>(null)
+  const goPrev = () => { if (nav?.onPrev) { setDir('from-left'); nav.onPrev() } }
+  const goNext = () => { if (nav?.onNext) { setDir('from-right'); nav.onNext() } }
+  const onTouchStart = (e: TouchEvent) => {
+    const t = e.touches[0]
+    swipe.current = e.touches.length === 1 ? { x: t.clientX, y: t.clientY, t: Date.now() } : null
+  }
+  const onTouchEnd = (e: TouchEvent) => {
+    const s = swipe.current
+    swipe.current = null
+    if (!s || !nav) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - s.x, dy = t.clientY - s.y
+    if (Date.now() - s.t > 600 || Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+    if (dx < 0) goNext(); else goPrev()
+  }
+  // a different item: start fresh (no half-confirmed delete, old error) and back at the top
+  useEffect(() => {
+    setConfirm(false); setError(null)
+    paneRef.current?.closest('.sheet')?.scrollTo({ top: 0 })
+  }, [p.id])
 
   const del = async () => {
     if (!confirm) { setConfirm(true); return }
@@ -56,6 +90,15 @@ export default function DetailSheet({ p, onClose, onDeleted }: {
 
   return (
     <Sheet onClose={onClose}>
+      <div ref={paneRef} key={p.id} className={'d-pane' + (dir ? ' ' + dir : '')}
+        onAnimationEnd={() => setDir(null)} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      {nav && nav.total > 1 && (
+        <div className="d-nav">
+          <button type="button" aria-label="Previous item" disabled={!nav.onPrev} onClick={goPrev}>‹</button>
+          <span>{nav.index + 1} / {nav.total}</span>
+          <button type="button" aria-label="Next item" disabled={!nav.onNext} onClick={goNext}>›</button>
+        </div>
+      )}
       {/* without a color card the card itself shows the photo, so don't repeat it */}
       {p.imagePath && !p.noColor && <img className="d-photo" src={p.imagePath} alt="" />}
       <SwatchCard p={p} />
@@ -83,6 +126,7 @@ export default function DetailSheet({ p, onClose, onDeleted }: {
           {confirm ? 'Confirm delete' : 'Delete'}
         </button>
         <button className="btn primary" onClick={() => go(`/edit/${p.id}`)}>Edit</button>
+      </div>
       </div>
     </Sheet>
   )

@@ -65,6 +65,8 @@ export default function ListPage({ items, error, category, openItem, onChanged }
   }, [items, cat, q, sort])
 
   const open = items?.find(p => p.id === openId)
+  // position in the list as shown (current category, search and sort), for swiping between items
+  const openIndex = open ? visible.findIndex(p => p.id === open.id) : -1
 
   // Swipe left/right on the list to go to the next/previous category (same order as the chips)
   const swipeStart = useRef<{ x: number; y: number; t: number } | null>(null)
@@ -222,7 +224,13 @@ export default function ListPage({ items, error, category, openItem, onChanged }
 
       {open && (
         <DetailSheet p={open} onClose={() => setOpenId(null)}
-          onDeleted={async () => { setOpenId(null); await onChanged() }} />
+          onDeleted={async () => { setOpenId(null); await onChanged() }}
+          nav={openIndex < 0 ? undefined : {
+            index: openIndex,
+            total: visible.length,
+            onPrev: openIndex > 0 ? () => setOpenId(visible[openIndex - 1].id) : undefined,
+            onNext: openIndex < visible.length - 1 ? () => setOpenId(visible[openIndex + 1].id) : undefined,
+          }} />
       )}
 
       {adding && (

@@ -1,4 +1,4 @@
-import type { AppSettings, ImageSearchHit, Product, ProductInput } from './types'
+import type { AppSettings, ImageSearchHit, ImageSearchResult, Product, ProductInput } from './types'
 
 async function json<T>(res: Response): Promise<T> {
   // Cloudflare version with a password: the sign-in expired or was never done
@@ -32,9 +32,14 @@ export const api = {
     fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) })
       .then(r => json<AppSettings>(r)),
   searchStatus: () => fetch('/api/image-search/status').then(r => json<{ configured: boolean }>(r)),
-  searchImages: (query: string) =>
-    fetch('/api/image-search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) })
-      .then(r => json<ImageSearchHit[]>(r)),
+  searchImages: (query: string, brand?: string | null, everywhere = false) =>
+    fetch('/api/image-search', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, brand, scope: everywhere ? 'all' : 'preferred' }),
+    })
+      .then(r => json<ImageSearchResult | ImageSearchHit[]>(r))
+      // the legacy PC version answers with a plain list
+      .then((r): ImageSearchResult => (Array.isArray(r) ? { hits: r, scope: 'all' } : r)),
   saveImageFromUrl: (url: string, fallbackUrl?: string | null) =>
     fetch('/api/images/from-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, fallbackUrl }) })
       .then(r => json<{ path: string }>(r)).then(r => r.path),

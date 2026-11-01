@@ -4,7 +4,7 @@ import { dominantColor, loadImage } from '../color'
 import ColorSection from '../components/ColorSection'
 import { isMulti } from '../layout'
 import SwatchCard from '../components/SwatchCard'
-import { categoryOf, type ImageSearchHit, type Product } from '../types'
+import { categoryOf, type ImageSearchHit, type ImageSearchResult, type Product } from '../types'
 import { go } from '../App'
 
 const defaultQuery = (p: Product) => [p.brand, p.name, p.shadeName].filter(Boolean).join(' ')
@@ -14,16 +14,24 @@ const defaultQuery = (p: Product) => [p.brand, p.name, p.shadeName].filter(Boole
  * home-screen app reloading itself (iPhone does that after a while in the background) shows the earlier
  * results instead of spending another Serper credit on the same search.
  */
-const CACHE_PREFIX = 'image-search:'
-const cacheKey = (q: string) => CACHE_PREFIX + q.trim().toLowerCase().replace(/\s+/g, ' ')
-function cachedHits(q: string): ImageSearchHit[] | null {
+const CACHE_PREFIX = 'image-search2:'
+const cacheKey = (q: string, brand: string) =>
+  CACHE_PREFIX + brand.trim().toLowerCase() + '|' + q.trim().toLowerCase().replace(/\s+/g, ' ')
+function cachedResult(q: string, brand: string): ImageSearchResult | null {
   try {
-    const v = sessionStorage.getItem(cacheKey(q))
-    return v ? (JSON.parse(v) as ImageSearchHit[]) : null
+    const v = sessionStorage.getItem(cacheKey(q, brand))
+    const r = v ? JSON.parse(v) : null
+    return r && Array.isArray(r.hits) ? (r as ImageSearchResult) : null
   } catch { return null }
 }
-function rememberHits(q: string, hits: ImageSearchHit[]) {
-  try { sessionStorage.setItem(cacheKey(q), JSON.stringify(hits)) } catch { /* storage full or blocked */ }
+function rememberResult(q: string, brand: string, r: ImageSearchResult) {
+  try { sessionStorage.setItem(cacheKey(q, brand), JSON.stringify(r)) } catch { /* storage full or blocked */ }
+}
+
+/** Best sources first (brand site, Sephora/Ulta, department stores, Temptalia, others), no duplicates */
+function mergeHits(first: ImageSearchHit[], more: ImageSearchHit[]) {
+  const seen = new Set(first.map(h => h.imageUrl))
+  return [...first, ...more.filter(h => !seen.has(h.imageUrl))].sort((a, b) => (a.rank ?? 4) - (b.rank ?? 4))
 }
 
 /**
@@ -39,6 +47,9 @@ export default function ImagePage({ product, isNew, onDone }: {
   const [stage, setStage] = useState<'search' | 'color'>('search')
   const [query, setQuery] = useState(() => defaultQuery(product))
   const [hits, setHits] = useState<ImageSearchHit[] | null>(null)
+  const [scope, setScope] = useState<ImageSearchResult['scope'] | null>(null)
+  /** the query the shown results are for (the box may have been edited since) */
+  const [shownQuery, setShownQuery] = useState('')
   const [searching, setSearching] = useState(false)
   const [picking, setPicking] = useState<string | null>(null)
   const [configured, setConfigured] = useState<boolean | null>(null)
@@ -49,29 +60,49 @@ export default function ImagePage({ product, isNew, onDone }: {
   const inFlight = useRef(false)
   const autoSearched = useRef(false)
 
+  const show = (q: string, r: ImageSearchResult) => { setHits(r.hits); setScope(r.scope); setShownQuery(q); setError(null) }
+
+  /** First the preferred sites; the server widens to everywhere by itself when they find almost nothing */
   const search = async (q = query) => {
     if (!q.trim() || inFlight.current) return
-    const cached = cachedHits(q)
-    if (cached) { setHits(cached); setError(null); return }
+    const cached = cachedResult(q, product.brand)
+    if (cached) { show(q, cached); return }
     inFlight.current = true
     setSearching(true); setError(null)
     try {
-      const found = await api.searchImages(q)
-      setHits(found)
-      rememberHits(q, found)
+      const r = await api.searchImages(q, product.brand)
+      show(q, r)
+      rememberResult(q, product.brand, r)
     }
-    catch (e) { setError((e as Error).message); setHits(null) }
+    catch (e) { setError((e as Error).message); setHits(null); setScope(null) }
+    finally { inFlight.current = false; setSearching(false) }
+  }
+
+  /** The preferred sites had results, but none fit: add results from everywhere */
+  const searchEverywhere = async () => {
+    const q = shownQuery
+    if (!q || !hits || inFlight.current) return
+    inFlight.current = true
+    setSearching(true); setError(null)
+    try {
+      const r = await api.searchImages(q, product.brand, true)
+      const merged: ImageSearchResult = { hits: mergeHits(hits, r.hits), scope: 'expanded' }
+      show(q, merged)
+      rememberResult(q, product.brand, merged)
+    }
+    catch (e) { setError((e as Error).message) }
     finally { inFlight.current = false; setSearching(false) }
   }
 
   useEffect(() => {
-    // React StrictMode runs effects twice in development; only search once
+    // React StrictMode runs effects twice in development; only run once
     if (autoSearched.current) return
     autoSearched.current = true
-    api.searchStatus().then(s => {
-      setConfigured(s.configured)
-      if (s.configured && query.trim()) search(query)
-    }).catch(() => setConfigured(false))
+    // No automatic search: the user may already have a photo to upload, and a search costs a Serper
+    // credit. Results already searched this session are free, so show those straight away.
+    const cached = query.trim() ? cachedResult(query, product.brand) : null
+    if (cached) show(query, cached)
+    api.searchStatus().then(s => setConfigured(s.configured)).catch(() => setConfigured(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -121,6 +152,11 @@ export default function ImagePage({ product, isNew, onDone }: {
       {stage === 'search' && (
         <div className="form">
           <div className="card">
+            <button type="button" className="btn upload-first" disabled={!!picking}
+              onClick={() => fileRef.current?.click()}>
+              {picking === 'upload' ? <span className="spinner" /> : <>📷 Upload my own photo</>}
+            </button>
+            <div className="or-line"><span>or search online</span></div>
             <div className="link-row">
               <input className="input" type="search" value={query} onChange={e => setQuery(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && !e.nativeEvent.isComposing && search()} placeholder="Brand, product, shade" />
@@ -131,31 +167,42 @@ export default function ImagePage({ product, isNew, onDone }: {
             {configured === false && (
               <div className="warn">
                 Online image search isn't set up yet (no Serper API key). In the worker folder run
-                <code> npx wrangler secret put SERPER_API_KEY</code> (see README). You can still upload a photo below.
+                <code> npx wrangler secret put SERPER_API_KEY</code> (see README). You can still upload a photo above.
               </div>
             )}
             {error && <div className="err">{error}</div>}
-            <button type="button" className="link-btn" style={{ alignSelf: 'flex-start' }} disabled={!!picking}
-              onClick={() => fileRef.current?.click()}>Upload my own photo instead</button>
             <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => onFile(e.target.files?.[0])} />
           </div>
 
           {hits && hits.length === 0 && <div className="empty">No pictures found. Try fewer words.</div>}
           {hits && hits.length > 0 && (
             <>
-              <div className="hint" style={{ padding: '0 4px' }}>Tap the picture that matches your shade</div>
+              <div className="search-scope">
+                <span>
+                  {scope === 'preferred' && <>From the brand's site, Sephora, Ulta, department stores and Temptalia.</>}
+                  {scope === 'expanded' && <>Few results on the preferred sites, so this also searched everywhere.</>}
+                  {scope === 'all' && <>Searched everywhere.</>}
+                  {' '}Tap the picture that matches your shade.
+                </span>
+                {scope === 'preferred' && (
+                  <button type="button" className="link-btn small" onClick={searchEverywhere} disabled={searching || !!picking}>
+                    {searching ? <span className="spinner" /> : 'Not here? Search everywhere'}
+                  </button>
+                )}
+              </div>
               <div className="results">
                 {hits.map(h => (
                   <button key={h.imageUrl} className="result" onClick={() => pick(h)} disabled={!!picking} title={h.title ?? ''}>
                     <img src={h.thumbnailUrl || h.imageUrl} alt={h.title ?? ''} loading="lazy" referrerPolicy="no-referrer" />
                     {picking === h.imageUrl && <span className="result-busy"><span className="spinner" /></span>}
-                    {h.source && <span className="result-src">{h.source}</span>}
+                    {(h.label || h.source) && (
+                      <span className={'result-src' + (h.rank === 0 ? ' official' : h.label ? ' known' : '')}>{h.label ?? h.source}</span>
+                    )}
                   </button>
                 ))}
               </div>
             </>
           )}
-          {picking === 'upload' && <div className="empty"><span className="spinner" /></div>}
         </div>
       )}
 

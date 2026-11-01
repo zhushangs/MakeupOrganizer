@@ -36,7 +36,20 @@ export interface ImageSearchHit {
   source?: string | null
   width?: number | null
   height?: number | null
+  /** page the picture is on */
+  link?: string | null
+  /** 0 brand's own site, 1 Sephora/Ulta, 2 department store, 3 Temptalia, 4 anything else */
+  rank?: number
+  /** short source name ("Official", "Sephora"…) */
+  label?: string | null
 }
+
+/**
+ * preferred: only the brand's site, Sephora, Ulta, department stores and Temptalia were searched;
+ * expanded: those found too little, so everywhere was searched as well; all: searched everywhere
+ */
+export type SearchScope = 'preferred' | 'expanded' | 'all'
+export interface ImageSearchResult { hits: ImageSearchHit[]; scope: SearchScope }
 
 export interface Category {
   key: string

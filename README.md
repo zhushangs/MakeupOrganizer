@@ -39,12 +39,13 @@ start.bat                    LEGACY: starts the old ASP.NET Core version
 
 - **Import from screenshots** (+ button): pick one or more order/cart screenshots. Text is read on the device with a free, built-in OCR engine (tesseract.js, no API key), then brand, product, shade, store and prices are guessed from it. Check and fix the rows, uncheck anything that isn't makeup, and save. Missing fields stay empty; add pictures and notes later from each item ("Find a picture & make the color card").
 - **Add one item**: fill in the details → **Save & find a picture**.
-- The app searches for "brand + product + shade" and shows the results. Tap the one that matches.
+- On the picture page, **Upload my own photo** if you have one, or tap **Search** (the box is filled in with "brand + product + shade"). Nothing is searched until you tap Search, so a photo of your own costs no Serper credit; a search you already ran is remembered until the app is closed. Tap the picture that matches. The search first searches only the brand's own site, Sephora, Ulta, department stores (Nordstrom, Macy's, Bloomingdale's, Saks, Neiman Marcus) and Temptalia; if that finds fewer than 3 pictures it also searches everywhere (one more Serper credit). **Not here? Search everywhere** does that by hand. Brand sites are listed in `worker/src/sources.ts`.
 - The picture is saved to R2 and the color card is generated from its most saturated dominant color. If it's off, drag on the picture to pick the exact spot, or use the color picker.
 - Eyeshadow palettes: set rows × columns, then tap each pan on the picture; it moves to the next pan automatically.
 - Blush, contour and other non-palette products can have 2–4 colors (side by side, top & bottom, or in quarters): pick one under **Colors** in the color step.
 - **Categories & brands** (gear icon on the home page): add, rename, reorder or remove categories (a category can be marked as a palette with a default layout; one in use can't be removed), and keep your own brand list. Your brands and every brand you already own are suggested when typing and recognized in screenshot import. You can also add a category on the spot with **+ New** when adding an item.
-- Home shows items as cards or as a list (toggle next to the sort menu).
+- Home shows items as cards or as a list (toggle next to the sort menu). On a phone, swipe left/right on the list to go to the next/previous category.
+- Item details open as a sheet: swipe left/right (or use ‹ ›) for the next/previous item in the list as shown (same category, search and sort), and swipe down to close it.
 - **View all as chart** shows the category as one color chart, sorted by color. From **All**, the chart is split into one section per category; a big collection is split into several images so each can be saved on a phone.
 - Clear / colorless products: tick **No color card** in the color step (or in Edit). The product picture is shown instead of a color everywhere (home, details, saved card, chart).
 - Search matches the start of words in brand, product, shade and pan names (e.g. `mac` finds MAC but not something bought at Macy's).
@@ -105,6 +106,8 @@ Alternatively you can use Cloudflare Access (email one-time codes): Workers & Pa
 
 ### Updating after code changes
 
+Double-click `worker/deploy.bat`, or:
+
 ```
 cd worker
 npm run deploy
@@ -115,6 +118,8 @@ npm run deploy
 ### Notes
 
 - Pictures that were downloaded or uploaded but never saved to an item are cleaned up daily (cron trigger).
+- Image search asks Serper for 10 pictures per search: more than 10 is billed as 2 credits.
+- `The given account is not valid or is not authorized to access this service [code: 7403]` when deploying usually means the wrangler sign-in expired: run `npx wrangler logout`, then `npx wrangler login` with the Cloudflare account the app was set up with, and deploy again. `npx wrangler whoami` shows which account you're signed in to.
 
 ## Changing the frontend (requires Node.js 18+)
 
