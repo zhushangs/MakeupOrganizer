@@ -100,8 +100,8 @@ export default function ImagePage({ product, isNew, onDone }: {
             </div>
             {configured === false && (
               <div className="warn">
-                Online image search isn't set up yet. Put your Serper API key in
-                <code> appsettings.Local.json</code> (see README) and restart. You can still upload a photo below.
+                Online image search isn't set up yet (no Serper API key). In the worker folder run
+                <code> npx wrangler secret put SERPER_API_KEY</code> (see README). You can still upload a photo below.
               </div>
             )}
             {error && <div className="err">{error}</div>}

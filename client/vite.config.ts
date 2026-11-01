@@ -1,7 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Build output goes straight into the backend's wwwroot, so only one .NET process is needed at runtime
+// Build output goes into server/MakeupOrganizer.Api/wwwroot, which the Cloudflare Worker serves (worker/wrangler.toml).
+// The ASP.NET Core server around it is legacy; only this folder is still used.
 export default defineConfig({
   plugins: [react()],
   build: {
@@ -11,8 +12,9 @@ export default defineConfig({
   server: {
     host: true,
     proxy: {
-      '/api': 'http://localhost:5080',
-      '/images': 'http://localhost:5080',
+      // the Worker running locally (`npm run dev` in worker/)
+      '/api': 'http://localhost:8787',
+      '/images': 'http://localhost:8787',
     },
   },
 })

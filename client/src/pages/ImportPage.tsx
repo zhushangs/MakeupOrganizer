@@ -37,10 +37,12 @@ const num = (s: string) => {
 }
 
 /** Import items from shopping screenshots: OCR on the phone, then review/fix before saving. */
-export default function ImportPage({ items, brands, onSaved }: {
+export default function ImportPage({ items, brands, onSaved, onChanged }: {
   items: Product[] | null
   brands: string[]
   onSaved: (firstCategory: string) => void
+  /** reload the item list (e.g. after deleting one from "View it") so duplicate warnings stay right */
+  onChanged: () => Promise<void>
 }) {
   const [shots, setShots] = useState<Shot[]>([])
   const [rows, setRows] = useState<Row[]>([])
@@ -207,7 +209,7 @@ export default function ImportPage({ items, brands, onSaved }: {
       </div>
 
       <datalist id="brand-list">{brands.map(b => <option key={b} value={b} />)}</datalist>
-      {viewing && <DetailSheet p={viewing} onClose={() => setViewing(null)} onDeleted={() => setViewing(null)} />}
+      {viewing && <DetailSheet p={viewing} onClose={() => setViewing(null)} onDeleted={async () => { setViewing(null); await onChanged() }} />}
 
       {rows.length > 0 && (
         <div className="save-bar">

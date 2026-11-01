@@ -1,4 +1,4 @@
-import type { Swatch } from './types'
+import { categoryOf, type Swatch } from './types'
 
 /**
  * Palette shapes. A palette is a rows × cols grid of cells; `layout` (optional) says which pan each
@@ -22,6 +22,26 @@ export function cellMap(s: Shape): number[] {
 
 export const panCount = (s: Shape) => Math.max(...cellMap(s)) + 1
 export const isMulti = (s: Shape) => panCount(s) > 1
+
+/**
+ * Split products: one product with 2–4 colors side by side, top & bottom or in quarters (a blush duo, a contour quad, a striped
+ * highlighter), in a category that isn't a palette. They're drawn as one square split into stripes,
+ * not as a row of square pans like an eyeshadow palette.
+ */
+export const SPLIT_SHAPES: { shape: Shape; label: string }[] = [
+  { shape: { gridRows: 1, gridCols: 1, layout: null }, label: 'One color' },
+  { shape: { gridRows: 1, gridCols: 2, layout: null }, label: 'Left · right' },
+  { shape: { gridRows: 2, gridCols: 1, layout: null }, label: 'Top · bottom' },
+  { shape: { gridRows: 1, gridCols: 3, layout: null }, label: '3 across' },
+  { shape: { gridRows: 3, gridCols: 1, layout: null }, label: '3 stacked' },
+  { shape: { gridRows: 2, gridCols: 2, layout: null }, label: '4 squares' },
+  { shape: { gridRows: 1, gridCols: 4, layout: null }, label: '4 across' },
+  { shape: { gridRows: 4, gridCols: 1, layout: null }, label: '4 stacked' },
+]
+export const isSplitShape = (s: Shape) =>
+  !s.layout && SPLIT_SHAPES.some(x => x.shape.gridRows === s.gridRows && x.shape.gridCols === s.gridCols)
+/** A multi-color item in a non-palette category: show it as one square block */
+export const isSplitProduct = (p: Shape & { category: string }) => isMulti(p) && !categoryOf(p.category).multi
 
 export function panRects(s: Shape): PanRect[] {
   const map = cellMap(s)

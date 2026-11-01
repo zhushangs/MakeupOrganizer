@@ -54,7 +54,7 @@ wrangler(`d1 migrations apply ${DB} --remote`)
 if (!existsSync(join(root, '..', 'client', 'node_modules'))) run('npm --prefix ../client install')
 run('npm run deploy')
 
-// 5. Serper key
+// 5. Serper key (picked up from the legacy PC version's appsettings.Local.json, if it's there)
 const local = join(root, '..', 'server', 'MakeupOrganizer.Api', 'appsettings.Local.json')
 if (existsSync(local)) {
   const key = JSON.parse(readFileSync(local, 'utf8'))?.Serper?.ApiKey
@@ -68,5 +68,5 @@ if (existsSync(local)) {
 
 console.log(`
 Done! Next:
-  - Copy your existing items and pictures:   npm run migrate-data
-  - Set a password so only you can open it:   npm run set-password`)
+  - Set a password so only you can open it:   npm run set-password
+  - Only if you have data from the legacy PC version:   npm run migrate-data`)

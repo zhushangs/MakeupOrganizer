@@ -4,10 +4,25 @@
  * - The password is the Worker secret APP_PASSWORD (`npm run set-password`).
  * - After logging in, the browser keeps a signed cookie for a year; changing the password
  *   signs everyone out, because the signing key is derived from the password.
- * - If APP_PASSWORD isn't set, the app stays open (handy for `wrangler dev`).
+ * - If APP_PASSWORD isn't set, the app is blocked (fail closed), so a lost or renamed secret can't
+ *   make it public. It stays open only on localhost (`wrangler dev`) or when ALLOW_OPEN=1 is set.
+ * - Failed sign-ins are counted in D1: 5 per IP or 30 in total within 15 minutes locks sign-in for
+ *   the rest of that window. Browsers that are already signed in aren't affected.
  */
 
 const COOKIE = 'vanity_auth'
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'])
+
+const LOCK_WINDOW = 15 * 60 // seconds
+const MAX_FAILS_PER_IP = 5
+const MAX_FAILS_TOTAL = 30
+const ALL = '*'
+
+export interface AuthEnv {
+  APP_PASSWORD?: string
+  ALLOW_OPEN?: string
+  DB: D1Database
+}
 const MAX_AGE = 365 * 24 * 60 * 60 // seconds
 
 /** Files the phone needs for "Add to Home Screen" even before logging in */
@@ -57,7 +72,48 @@ function cookie(value: string, maxAge: number, secure: boolean) {
   return `${COOKIE}=${value}; Path=/; Max-Age=${maxAge}; HttpOnly; SameSite=Lax${secure ? '; Secure' : ''}`
 }
 
-const loginPage = (error: boolean) => `<!doctype html>
+// ---------------------------------------------------------------- lockout
+
+/** Seconds until sign-in is allowed again for this IP (0 = allowed now) */
+async function lockedFor(db: D1Database, ip: string): Promise<number> {
+  try {
+    const now = Math.floor(Date.now() / 1000)
+    const { results } = await db.prepare('SELECT key, fails, window_start FROM login_attempts WHERE key IN (?1, ?2)')
+      .bind(ip, ALL).all<{ key: string; fails: number; window_start: number }>()
+    let wait = 0
+    for (const r of results) {
+      const limit = r.key === ALL ? MAX_FAILS_TOTAL : MAX_FAILS_PER_IP
+      const left = r.window_start + LOCK_WINDOW - now
+      if (left > 0 && r.fails >= limit) wait = Math.max(wait, left)
+    }
+    return wait
+  } catch (e) {
+    // e.g. the login_attempts table hasn't been created yet (`npm run migrate-db`)
+    console.error('Login lockout check failed:', e)
+    return 0
+  }
+}
+
+async function recordFailure(db: D1Database, ip: string) {
+  const now = Math.floor(Date.now() / 1000)
+  // a new window starts once the old one has run out
+  const sql = 'INSERT INTO login_attempts (key, fails, window_start) VALUES (?1, 1, ?2) ON CONFLICT(key) DO UPDATE SET ' +
+    'fails = CASE WHEN ?2 - window_start >= ?3 THEN 1 ELSE fails + 1 END, ' +
+    'window_start = CASE WHEN ?2 - window_start >= ?3 THEN ?2 ELSE window_start END'
+  try {
+    await db.batch([db.prepare(sql).bind(ip, now, LOCK_WINDOW), db.prepare(sql).bind(ALL, now, LOCK_WINDOW)])
+  } catch (e) {
+    console.error('Recording a failed sign-in failed:', e)
+  }
+}
+
+async function clearFailures(db: D1Database, ip: string) {
+  try { await db.prepare('DELETE FROM login_attempts WHERE key = ?1').bind(ip).run() } catch { /* ignore */ }
+}
+
+// ---------------------------------------------------------------- pages
+
+const loginPage = (error: string | null) => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -92,7 +148,7 @@ const loginPage = (error: boolean) => `<!doctype html>
   <h1>Vanity</h1>
   <p>Enter your password</p>
   <input type="password" name="password" autocomplete="current-password" autofocus required aria-label="Password">
-  ${error ? '<div class="err">Wrong password</div>' : ''}
+  ${error ? `<div class="err">${error}</div>` : ''}
   <button type="submit">Sign in</button>
 </form>
 </body>
@@ -105,9 +161,17 @@ const html = (body: string, status = 200, headers: HeadersInit = {}) =>
  * Returns a Response when the request is handled here (login/logout pages, or blocked because not signed in),
  * or null when it may continue to the app.
  */
-export async function checkAuth(req: Request, password: string | undefined): Promise<Response | null> {
-  if (!password) return null
+export async function checkAuth(req: Request, env: AuthEnv): Promise<Response | null> {
   const url = new URL(req.url)
+  const password = env.APP_PASSWORD
+  if (!password) {
+    if (LOCAL_HOSTS.has(url.hostname) || env.ALLOW_OPEN === '1') return null
+    const msg = 'No password is set for this app, so it is locked. In the worker folder run: npm run set-password'
+    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/images/')) {
+      return new Response(JSON.stringify({ error: msg }), { status: 503, headers: { 'content-type': 'application/json' } })
+    }
+    return html(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Vanity</title><p style="font-family:sans-serif;padding:24px">${msg}</p>`, 503)
+  }
   const secure = url.protocol === 'https:'
 
   if (url.pathname === '/logout') {
@@ -116,17 +180,26 @@ export async function checkAuth(req: Request, password: string | undefined): Pro
 
   if (url.pathname === '/login') {
     if (req.method === 'POST') {
-      const form = await req.formData()
-      const given = String(form.get('password') ?? '')
-      if (await sameString(given, password)) {
+      const ip = req.headers.get('cf-connecting-ip') ?? 'unknown'
+      const wait = await lockedFor(env.DB, ip)
+      if (wait > 0) {
+        const minutes = Math.ceil(wait / 60)
+        return html(loginPage(`Too many wrong passwords. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`), 429,
+          { 'retry-after': String(wait) })
+      }
+      let given = ''
+      try { given = String((await req.formData()).get('password') ?? '') } catch { /* not a form post */ }
+      if (given && await sameString(given, password)) {
+        await clearFailures(env.DB, ip)
         return new Response(null, { status: 303, headers: { location: '/', 'set-cookie': cookie(await makeToken(password), MAX_AGE, secure) } })
       }
+      await recordFailure(env.DB, ip)
       await new Promise(r => setTimeout(r, 800)) // slow down guessing
-      return html(loginPage(true), 401)
+      return html(loginPage('Wrong password'), 401)
     }
     // already signed in → go to the app
     if (await validToken(password, readCookie(req, COOKIE))) return new Response(null, { status: 302, headers: { location: '/' } })
-    return html(loginPage(false))
+    return html(loginPage(null))
   }
 
   if (PUBLIC_PATHS.has(url.pathname)) return null

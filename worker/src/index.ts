@@ -13,8 +13,10 @@ export interface Env {
   IMAGES: R2Bucket
   ASSETS: Fetcher
   SERPER_API_KEY?: string
-  /** password for the whole app (`npm run set-password`); if unset the app is open */
+  /** password for the whole app (`npm run set-password`); if unset the app is blocked (except on localhost) */
   APP_PASSWORD?: string
+  /** set to "1" to deliberately run without a password */
+  ALLOW_OPEN?: string
   /** optional, for testing against a mock */
   SERPER_BASE_URL?: string
 }
@@ -73,6 +75,26 @@ const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
 const optStr = (v: unknown) => str(v) || null
 const optNum = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 const newId = () => crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+
+/** Pictures sit behind the password, so browsers may cache them but shared caches/proxies must not */
+const IMAGE_CACHE = 'private, max-age=31536000, immutable'
+
+/** An error that becomes a response with this status (instead of a 500) */
+class HttpError extends Error {
+  constructor(message: string, public status = 400) { super(message) }
+}
+
+/** The request body as a JSON object; a malformed body is a 400, not a server error */
+async function readJson<T extends object = Record<string, unknown>>(req: Request): Promise<Partial<T>> {
+  let v: unknown
+  try { v = await req.json() } catch { throw new HttpError('The request body is not valid JSON') }
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) throw new HttpError('The request body must be a JSON object')
+  return v as Partial<T>
+}
+
+async function readForm(req: Request): Promise<FormData> {
+  try { return await req.formData() } catch { throw new HttpError('Expected a file upload') }
+}
 
 /** Keep a layout only if well-formed: right length, pans numbered in reading order, each pan a rectangle */
 function validLayout(rows: number, cols: number, layout: unknown): number[] | null {
@@ -193,7 +215,7 @@ async function saveImage(env: Env, body: ReadableStream | ArrayBuffer, contentTy
   const buf = body instanceof ArrayBuffer ? body : await new Response(body).arrayBuffer()
   if (buf.byteLength > MAX_IMAGE_BYTES) throw new Error('Image is too large (over 15MB)')
   const name = crypto.randomUUID().replace(/-/g, '') + ext
-  await env.IMAGES.put(name, buf, { httpMetadata: { contentType: type, cacheControl: 'public, max-age=31536000, immutable' } })
+  await env.IMAGES.put(name, buf, { httpMetadata: { contentType: type, cacheControl: IMAGE_CACHE } })
   return '/images/' + name
 }
 
@@ -224,7 +246,7 @@ async function handleApi(req: Request, env: Env, url: URL): Promise<Response> {
   if (path === '/api/products' && method === 'GET') return json(await listProducts(env))
   if (path === '/api/products' && method === 'POST') {
     const now = new Date().toISOString()
-    const p = normalizeProduct(await req.json(), newId(), now)
+    const p = normalizeProduct(await readJson(req), newId(), now)
     await putProduct(env, p)
     return json(p, 201)
   }
@@ -235,7 +257,7 @@ async function handleApi(req: Request, env: Env, url: URL): Promise<Response> {
     if (!existing) return error('Not found', 404)
     if (method === 'GET') return json(existing)
     if (method === 'PUT') {
-      const p = normalizeProduct(await req.json(), id, existing.createdAt)
+      const p = normalizeProduct(await readJson(req), id, existing.createdAt)
       await putProduct(env, p)
       if (existing.imagePath !== p.imagePath) await deleteImageIfUnused(env, existing.imagePath)
       return json(p)
@@ -253,7 +275,7 @@ async function handleApi(req: Request, env: Env, url: URL): Promise<Response> {
     return json(normalizeSettings(row ? JSON.parse(row.data) : { categories: DEFAULT_CATEGORIES, brands: [] }))
   }
   if (path === '/api/settings' && method === 'PUT') {
-    const s = normalizeSettings(await req.json())
+    const s = normalizeSettings(await readJson(req))
     await env.DB.prepare('INSERT INTO settings (id, data) VALUES (1, ?1) ON CONFLICT(id) DO UPDATE SET data = ?1')
       .bind(JSON.stringify(s)).run()
     return json(s)
@@ -261,7 +283,7 @@ async function handleApi(req: Request, env: Env, url: URL): Promise<Response> {
 
   // images
   if (path === '/api/images' && method === 'POST') {
-    const form = await req.formData()
+    const form = await readForm(req)
     const file = form.get('file')
     if (!file || typeof file === 'string') return error('No file')
     try {
@@ -272,9 +294,9 @@ async function handleApi(req: Request, env: Env, url: URL): Promise<Response> {
     }
   }
   if (path === '/api/images/from-url' && method === 'POST') {
-    const body = await req.json<{ url?: string; fallbackUrl?: string }>()
+    const body = await readJson<{ url: string; fallbackUrl: string }>(req)
     for (const u of [body.url, body.fallbackUrl]) {
-      if (!u) continue
+      if (typeof u !== 'string' || !u) continue
       const saved = await downloadImage(env, u)
       if (saved) return json({ path: saved })
     }
@@ -284,8 +306,8 @@ async function handleApi(req: Request, env: Env, url: URL): Promise<Response> {
   // image search (Serper.dev)
   if (path === '/api/image-search/status' && method === 'GET') return json({ configured: !!env.SERPER_API_KEY })
   if (path === '/api/image-search' && method === 'POST') {
-    const { query } = await req.json<{ query?: string }>()
-    if (!query?.trim()) return error('Enter something to search for')
+    const { query } = await readJson<{ query: string }>(req)
+    if (typeof query !== 'string' || !query.trim()) return error('Enter something to search for')
     if (!env.SERPER_API_KEY) return error('Image search isn\'t set up yet. Add the SERPER_API_KEY secret (see README).')
     const res = await fetch(`${env.SERPER_BASE_URL || 'https://google.serper.dev'}/images`, {
       method: 'POST',
@@ -316,7 +338,8 @@ async function serveImage(env: Env, name: string): Promise<Response> {
   const headers = new Headers()
   obj.writeHttpMetadata(headers)
   headers.set('etag', obj.httpEtag)
-  if (!headers.has('cache-control')) headers.set('cache-control', 'public, max-age=31536000, immutable')
+  // always private, also for pictures stored before this was changed (their R2 metadata says public)
+  headers.set('cache-control', IMAGE_CACHE)
   return new Response(obj.body, { headers })
 }
 
@@ -324,12 +347,13 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url)
     try {
-      const blocked = await checkAuth(req, env.APP_PASSWORD)
+      const blocked = await checkAuth(req, env)
       if (blocked) return blocked
       if (url.pathname.startsWith('/api/')) return await handleApi(req, env, url)
       if (url.pathname.startsWith('/images/')) return await serveImage(env, decodeURIComponent(url.pathname.slice(8)))
       return env.ASSETS.fetch(req)
     } catch (e) {
+      if (e instanceof HttpError) return error(e.message, e.status)
       console.error(e)
       return error('Server error: ' + (e as Error).message, 500)
     }
@@ -338,13 +362,23 @@ export default {
   /** Daily: delete pictures that were uploaded/downloaded more than a day ago but never saved to an item */
   async scheduled(_event: ScheduledController, env: Env): Promise<void> {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000
+    // One query for every picture in use: a query per picture would hit the free plan's
+    // limit of 50 D1 queries per run once there are more than ~50 pictures.
+    const { results } = await env.DB.prepare(
+      "SELECT DISTINCT json_extract(data, '$.imagePath') AS path FROM products WHERE json_extract(data, '$.imagePath') IS NOT NULL",
+    ).all<{ path: string }>()
+    const used = new Set(results.map(r => r.path.replace(/^\/images\//, '')))
     let cursor: string | undefined
+    let deleted = 0
     do {
-      const page = await env.IMAGES.list({ cursor, limit: 500 })
-      for (const obj of page.objects) {
-        if (obj.uploaded.getTime() < cutoff && !(await isImageReferenced(env, '/images/' + obj.key))) await env.IMAGES.delete(obj.key)
+      const page = await env.IMAGES.list({ cursor, limit: 1000 })
+      const stale = page.objects.filter(o => o.uploaded.getTime() < cutoff && !used.has(o.key)).map(o => o.key)
+      if (stale.length) {
+        await env.IMAGES.delete(stale) // one call for up to 1000 keys
+        deleted += stale.length
       }
       cursor = page.truncated ? page.cursor : undefined
     } while (cursor)
+    console.log(`Image cleanup: ${used.size} in use, ${deleted} unused deleted`)
   },
 } satisfies ExportedHandler<Env>

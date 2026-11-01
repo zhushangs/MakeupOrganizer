@@ -9,3 +9,6 @@ client/public/ocr/
 worker/.wrangler/
 worker/.dev.vars
 *.tsbuildinfo
+# personal data: one-time inventory import, and Cloudflare backups (npm run backup)
+import-once/
+backups/

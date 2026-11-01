@@ -12,7 +12,7 @@ public class Product
 {
     public string Id { get; set; } = "";
     /// <summary>lipstick | lipgloss | eyeshadow | blush | highlight | base | other</summary>
-    public string Category { get; set; } = "lipstick";
+    public string Category { get; set; } = "other";
     public string Brand { get; set; } = "";
     public string Name { get; set; } = "";
     public string? ShadeName { get; set; }

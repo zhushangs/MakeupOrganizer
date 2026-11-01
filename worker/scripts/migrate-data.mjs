@@ -1,4 +1,4 @@
-// Copies the local data (server/MakeupOrganizer.Api/data) to Cloudflare:
+// One-time move from the legacy ASP.NET Core version: copies its local data (server/MakeupOrganizer.Api/data) to Cloudflare:
 // products.json + settings.json → D1, images/* → R2. Safe to run again (rows are upserted, images overwritten).
 // Run from the worker folder:  npm run migrate-data
 import { execSync } from 'node:child_process'
@@ -52,6 +52,6 @@ const imgDir = join(dataDir, 'images')
 const files = existsSync(imgDir) ? readdirSync(imgDir).filter(f => used.has(f)) : []
 for (const f of files) {
   const type = TYPES[extname(f).toLowerCase()] ?? 'application/octet-stream'
-  wrangler(`r2 object put "${BUCKET}/${f}" ${target} --file="${join(imgDir, f)}" --content-type=${type} --cache-control="public, max-age=31536000, immutable"`)
+  wrangler(`r2 object put "${BUCKET}/${f}" ${target} --file="${join(imgDir, f)}" --content-type=${type} --cache-control="private, max-age=31536000, immutable"`)
 }
 console.log(`\nDone: ${products.length} items, ${files.length} pictures.`)

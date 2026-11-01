@@ -89,7 +89,7 @@ export default function App() {
     case 'settings':
       return <SettingsPage items={items} settings={settings} onSave={saveSettings} />
     case 'import':
-      return <ImportPage items={items} brands={brands} onSaved={async () => { await reload(); replace('/') }} />
+      return <ImportPage items={items} brands={brands} onChanged={reload} onSaved={async () => { await reload(); replace('/') }} />
     case 'new':
       return (
         <EditPage key="new" items={items} brands={brands} settings={settings} onSaveSettings={saveSettings}

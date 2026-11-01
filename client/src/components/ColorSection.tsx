@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { dominantColor, isDark } from '../color'
 import type { Swatch } from '../types'
-import { isMulti, panCount, reshapeSwatches, type Shape } from '../layout'
+import { isMulti, isSplitShape, panCount, reshapeSwatches, SPLIT_SHAPES, type Shape } from '../layout'
 import PanGrid from './PanGrid'
 import ColorEditor from './ColorEditor'
 import PaletteLayout from './PaletteLayout'
@@ -11,19 +11,14 @@ export interface ColorValue extends Shape {
   noColor?: boolean
 }
 
-export function resizeSwatches(sw: Swatch[], oldCols: number, rows: number, cols: number): Swatch[] {
-  const out: Swatch[] = []
-  for (let r = 0; r < rows; r++)
-    for (let c = 0; c < cols; c++)
-      out.push(c < oldCols ? (sw[r * oldCols + c] ?? {}) : {})
-  return out
-}
-
 /** Grid size, pan cells, and the color editor (eyedropper on the product image + color picker). */
 export default function ColorSection({ value, imagePath, showLayout, onChange }: {
   value: ColorValue
   imagePath?: string | null
-  /** show the palette layout picker (eyeshadow etc.); always shown once there's more than one pan */
+  /**
+   * palette category (eyeshadow etc.): show the full palette layout picker. Otherwise (blush, lipstick…)
+   * show the small picker for 1–3 colors side by side or top & bottom.
+   */
   showLayout?: boolean
   onChange: (v: ColorValue) => void
 }) {
@@ -31,6 +26,9 @@ export default function ColorSection({ value, imagePath, showLayout, onChange }:
   const cells = panCount(value)
   const multi = isMulti(value)
   const cur = Math.min(sel, cells - 1)
+  // non-palette product: colors are stripes of one square block, and are called "colors", not "pans"
+  const split = !showLayout
+  const unit = split ? 'Color' : 'Pan'
 
   const setShape = (shape: Shape) => {
     onChange({ ...shape, layout: shape.layout ?? null, swatches: reshapeSwatches(value, value.swatches, shape) })
@@ -52,10 +50,13 @@ export default function ColorSection({ value, imagePath, showLayout, onChange }:
   return (
     <>
       {noColorToggle}
-      {(showLayout || multi) && <PaletteLayout value={value} onChange={setShape} />}
+      {split && !(multi && !isSplitShape(value))
+        ? <SplitPicker value={value} onChange={setShape} />
+        // palettes, and older non-palette items with a custom palette shape
+        : (showLayout || multi) && <PaletteLayout value={value} onChange={setShape} />}
 
       {multi && (
-        <PanGrid shape={value} className="edit-grid">
+        <PanGrid shape={value} className="edit-grid" style={split ? { aspectRatio: '1', maxWidth: 220 } : undefined}>
           {i => {
             const s = value.swatches[i] ?? {}
             return (
@@ -70,15 +71,15 @@ export default function ColorSection({ value, imagePath, showLayout, onChange }:
       )}
 
       {multi && (
-        <div className="field"><label>Pan {cur + 1} name (optional)</label>
-          <input className="input" value={value.swatches[cur]?.label ?? ''} placeholder="e.g. Buzz"
+        <div className="field"><label>{unit} {cur + 1} name (optional)</label>
+          <input className="input" value={value.swatches[cur]?.label ?? ''} placeholder={split ? 'e.g. Highlight' : 'e.g. Buzz'}
             onChange={e => patchCell(cur, { label: e.target.value })} /></div>
       )}
 
       <ColorEditor
         value={value.swatches[cur]?.hex}
         images={images}
-        hint={multi ? `Tap pan ${cur + 1} on the picture (left → right, top → bottom, same as the grid above). It moves to the next pan automatically.` : 'Press and drag on the image, release to pick'}
+        hint={multi ? `Tap ${unit.toLowerCase()} ${cur + 1} on the picture (left → right, top → bottom, same as above). It moves to the next one automatically.` : 'Press and drag on the image, release to pick'}
         onChange={(hex, fromImage) => {
           patchCell(cur, { hex })
           if (fromImage && multi) setSel(Math.min(cur + 1, cells - 1))
@@ -91,5 +92,24 @@ export default function ColorSection({ value, imagePath, showLayout, onChange }:
         </button>
       )}
     </>
+  )
+}
+
+/** For non-palette products: one color, or 2–4 colors side by side / top & bottom / in quarters */
+function SplitPicker({ value, onChange }: { value: Shape; onChange: (s: Shape) => void }) {
+  return (
+    <div className="field">
+      <label>Colors</label>
+      <div className="layout-presets">
+        {SPLIT_SHAPES.map(({ shape, label }) => (
+          <button key={label} type="button" title={label}
+            className={'preset' + (shape.gridRows === value.gridRows && shape.gridCols === value.gridCols && !value.layout ? ' on' : '')}
+            onClick={() => onChange(shape)}>
+            <PanGrid shape={shape} className="preset-grid split" style={{ aspectRatio: '1' }}>{() => <i />}</PanGrid>
+            <span className="preset-label">{label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }

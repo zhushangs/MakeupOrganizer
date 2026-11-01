@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getCategories, type Product } from '../types'
+import { categoryOf, getCategories, type Product } from '../types'
 import { hueSortKey } from '../color'
 import PaletteGrid from '../components/PaletteGrid'
 import { isMulti } from '../layout'
-import DetailSheet from '../components/DetailSheet'
+import DetailSheet, { formatPrice } from '../components/DetailSheet'
 import Sheet from '../components/Sheet'
 import { go } from '../App'
 
 type Sort = 'hue' | 'new' | 'brand'
+type View = 'cards' | 'list'
 
 const words = (s?: string | null) => (s ?? '').toLowerCase().split(/[^a-z0-9\u00c0-\u024f\u4e00-\u9fff#]+/).filter(Boolean)
 
@@ -46,6 +47,8 @@ export default function ListPage({ items, error, category, openItem, onChanged }
   const total = items?.length ?? 0
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<Sort>(() => (store.get('sort') as Sort) || 'hue')
+  const [view, setView] = useState<View>(() => (store.get('view') === 'list' ? 'list' : 'cards'))
+  const changeView = (v: View) => { setView(v); store.set('view', v) }
   const [openId, setOpenId] = useState<string | null>(openItem ?? null)
   useEffect(() => { if (openItem) setOpenId(openItem) }, [openItem])
   const [adding, setAdding] = useState(false)
@@ -96,6 +99,22 @@ export default function ListPage({ items, error, category, openItem, onChanged }
             <option value="new">Newest</option>
             <option value="brand">By brand</option>
           </select>
+          <div className="view-toggle" role="group" aria-label="View">
+            <button type="button" className={view === 'cards' ? 'on' : ''} aria-label="View as cards" aria-pressed={view === 'cards'}
+              onClick={() => changeView('cards')}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <rect x="3" y="3" width="8" height="8" rx="2" /><rect x="13" y="3" width="8" height="8" rx="2" />
+                <rect x="3" y="13" width="8" height="8" rx="2" /><rect x="13" y="13" width="8" height="8" rx="2" />
+              </svg>
+            </button>
+            <button type="button" className={view === 'list' ? 'on' : ''} aria-label="View as list" aria-pressed={view === 'list'}
+              onClick={() => changeView('list')}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <rect x="3" y="4" width="5" height="5" rx="1.5" /><rect x="10" y="5.5" width="11" height="2" rx="1" />
+                <rect x="3" y="15" width="5" height="5" rx="1.5" /><rect x="10" y="16.5" width="11" height="2" rx="1" />
+              </svg>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -108,7 +127,31 @@ export default function ListPage({ items, error, category, openItem, onChanged }
         </div>
       )}
 
-      {visible.length > 0 && (
+      {visible.length > 0 && view === 'list' && (
+        <div className="list-rows">
+          {visible.map(p => {
+            const price = formatPrice(p.paidPrice ?? p.originalPrice, p.currency)
+            return (
+              <button key={p.id} className="list-row" onClick={() => setOpenId(p.id)}>
+                <RowSwatch p={p} />
+                <span className="lr-text">
+                  <span className="lr-brand">{p.brand}</span>
+                  <span className="lr-shade">{p.shadeName || p.name}</span>
+                  {p.shadeName && p.name && <span className="lr-name">{p.name}</span>}
+                </span>
+                {(price || cat === 'all') && (
+                  <span className="lr-meta">
+                    {price && <span className="lr-price">{price}</span>}
+                    {cat === 'all' && <span className="lr-cat">{categoryOf(p.category).label}</span>}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {visible.length > 0 && view === 'cards' && (
         <div className="cards">
           {visible.map(p => {
             // no color card (clear products): show the product photo instead
@@ -160,5 +203,17 @@ export default function ListPage({ items, error, category, openItem, onChanged }
         </Sheet>
       )}
     </div>
+  )
+}
+
+/** Small color thumbnail for list rows: the color, the palette/split in its layout, or the photo */
+function RowSwatch({ p }: { p: Product }) {
+  const multi = !p.noColor && isMulti(p)
+  const hex = p.noColor ? null : p.swatches[0]?.hex
+  const photo = !multi && !hex && p.imagePath
+  return (
+    <span className={'lr-sw' + (multi ? ' pal' : '') + (photo ? ' photo' : '')} style={!multi && hex ? { background: hex } : undefined}>
+      {multi ? <PaletteGrid p={p} /> : photo ? <img src={p.imagePath!} alt="" loading="lazy" /> : null}
+    </span>
   )
 }

@@ -22,6 +22,8 @@ export default function DetailSheet({ p, onClose, onDeleted }: {
   const [confirm, setConfirm] = useState(false)
   const [busy, setBusy] = useState(false)
   const [card, setCard] = useState<string | null>(null)
+  const [making, setMaking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const orig = formatPrice(p.originalPrice, p.currency)
   const paid = formatPrice(p.paidPrice, p.currency)
   const saved = p.originalPrice && p.paidPrice != null && p.paidPrice < p.originalPrice
@@ -29,8 +31,23 @@ export default function DetailSheet({ p, onClose, onDeleted }: {
 
   const del = async () => {
     if (!confirm) { setConfirm(true); return }
-    setBusy(true)
-    try { await api.remove(p.id); onDeleted() } finally { setBusy(false) }
+    setBusy(true); setError(null)
+    try {
+      await api.remove(p.id)
+      onDeleted()
+    } catch (e) {
+      setError((e as Error).message || "Couldn't delete this item")
+      setConfirm(false)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const makeCard = async () => {
+    setMaking(true); setError(null)
+    try { setCard(await renderProductCard(p)) }
+    catch (e) { setError((e as Error).message || "Couldn't make the card") }
+    finally { setMaking(false) }
   }
 
   if (card)
@@ -57,9 +74,10 @@ export default function DetailSheet({ p, onClose, onDeleted }: {
           {p.noColor ? 'Find a picture' : <>Find a picture &amp; make the color card</>}
         </button>
       )}
-      <button className="btn" style={{ width: '100%', marginBottom: 10 }} onClick={async () => setCard(await renderProductCard(p))}>
-        {p.noColor ? 'Save card as image' : 'Save color card as image'}
+      <button className="btn" style={{ width: '100%', marginBottom: 10 }} onClick={makeCard} disabled={making}>
+        {making ? <span className="spinner" /> : p.noColor ? 'Save card as image' : 'Save color card as image'}
       </button>
+      {error && <div className="err" style={{ textAlign: 'center', marginBottom: 10 }}>{error}</div>}
       <div className="row">
         <button className={'btn danger' + (confirm ? ' confirm' : '')} onClick={del} disabled={busy}>
           {confirm ? 'Confirm delete' : 'Delete'}

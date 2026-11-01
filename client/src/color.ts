@@ -61,21 +61,6 @@ function pixels(img: HTMLImageElement, size = 80) {
   return { data: ctx.getImageData(0, 0, w, h).data, w, h }
 }
 
-/** Swatch image: average color of the center region (ignoring white borders) */
-export async function swatchColor(src: string): Promise<string | null> {
-  const img = await loadImage(src)
-  const { data, w, h } = pixels(img, 60)
-  let r = 0, g = 0, b = 0, n = 0
-  for (let y = Math.floor(h * 0.2); y < Math.ceil(h * 0.8); y++)
-    for (let x = Math.floor(w * 0.2); x < Math.ceil(w * 0.8); x++) {
-      const i = (y * w + x) * 4
-      if (data[i + 3] < 200) continue
-      if (data[i] > 245 && data[i + 1] > 245 && data[i + 2] > 245) continue
-      r += data[i]; g += data[i + 1]; b += data[i + 2]; n++
-    }
-  return n ? toHex([r / n, g / n, b / n]) : null
-}
-
 /**
  * Product image: find the color most likely to be the shade.
  * Buckets pixels by color, skips white background, pure black and transparency, and favors saturated buckets

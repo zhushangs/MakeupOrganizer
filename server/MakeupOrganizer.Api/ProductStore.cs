@@ -108,11 +108,22 @@ public class ProductStore
                 s.Hex = null;
             s.Hex = s.Hex?.ToLowerInvariant();
         }
+        foreach (var s in p.Swatches) s.Label = OptStr(s.Label);
+        // same rules as normalizeProduct in worker/src/index.ts
+        p.Category = string.IsNullOrWhiteSpace(p.Category) ? "other" : p.Category.Trim();
         p.Brand = p.Brand?.Trim() ?? "";
         p.Name = p.Name?.Trim() ?? "";
-        p.ShadeName = string.IsNullOrWhiteSpace(p.ShadeName) ? null : p.ShadeName.Trim();
-        p.Channel = string.IsNullOrWhiteSpace(p.Channel) ? null : p.Channel.Trim();
+        p.ShadeName = OptStr(p.ShadeName);
+        p.Channel = OptStr(p.Channel);
+        p.Currency = OptStr(p.Currency);
+        p.Notes = OptStr(p.Notes);
+        // only our own stored pictures; anything else could point TryDelete at the wrong file
+        if (p.ImagePath is not null && !ImagePathRe.IsMatch(p.ImagePath)) p.ImagePath = null;
     }
+
+    private static readonly System.Text.RegularExpressions.Regex ImagePathRe = new(@"^/images/[\w.-]+$");
+
+    private static string? OptStr(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
     /// <summary>
     /// Keep a layout only if it's well-formed: right length, pans numbered 0..n-1 in reading order,

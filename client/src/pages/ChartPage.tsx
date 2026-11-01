@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { renderChart } from '../cards'
 import { hueSortKey } from '../color'
 import { categoryOf, getCategories, type Product } from '../types'
@@ -19,13 +19,18 @@ export default function ChartPage({ items, category }: { items: Product[] | null
       .filter(s => s.items.length)
   }, [items, cat.key]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [src, setSrc] = useState<string | null>(null)
+  const hasItems = sections.some(s => s.items.length)
+  const [srcs, setSrcs] = useState<string[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     let alive = true
-    if (!sections.some(s => s.items.length)) { setSrc(null); return }
-    renderChart(cat.label, sections).then(url => alive && setSrc(url))
+    setSrcs(null); setError(null)
+    if (!hasItems) return
+    renderChart(cat.label, sections)
+      .then(urls => { if (alive) setSrcs(urls) })
+      .catch(e => { if (alive) setError((e as Error).message || "Couldn't make the chart") })
     return () => { alive = false }
-  }, [sections, cat.label])
+  }, [sections, cat.label, hasItems])
 
   return (
     <div className="app">
@@ -35,13 +40,25 @@ export default function ChartPage({ items, category }: { items: Product[] | null
         <span style={{ width: 52 }} />
       </div>
       {!items && <div className="empty">Loading…</div>}
-      {items && !src && <div className="empty">{sections.some(s => s.items.length) ? 'Making the chart…' : `No ${cat.label.toLowerCase()} yet`}</div>}
-      {src && (
+      {items && !srcs && !error && <div className="empty">{hasItems ? 'Making the chart…' : `No ${cat.label.toLowerCase()} yet`}</div>}
+      {error && <div className="empty"><div className="err">{error}</div></div>}
+      {srcs && (
         <div className="form">
-          <img className="chart-img" src={src} alt={`${cat.label} color chart`} />
-          <div className="hint" style={{ textAlign: 'center' }}>On your phone: press and hold the chart → <b>Save to Photos</b></div>
-          <a className="btn" style={{ textAlign: 'center', textDecoration: 'none' }} href={src}
-            download={`${cat.key}-chart.png`}>Download</a>
+          {srcs.length > 1 && (
+            <div className="hint" style={{ textAlign: 'center' }}>
+              Split into {srcs.length} images so each one can be saved on a phone.
+            </div>
+          )}
+          {srcs.map((src, i) => (
+            <Fragment key={i}>
+              <img className="chart-img" src={src} alt={`${cat.label} color chart${srcs.length > 1 ? `, part ${i + 1}` : ''}`} />
+              <a className="btn" style={{ textAlign: 'center', textDecoration: 'none' }} href={src}
+                download={`${cat.key}-chart${srcs.length > 1 ? `-${i + 1}` : ''}.png`}>
+                Download{srcs.length > 1 ? ` part ${i + 1}` : ''}
+              </a>
+            </Fragment>
+          ))}
+          <div className="hint" style={{ textAlign: 'center' }}>On your phone: press and hold a chart → <b>Save to Photos</b></div>
         </div>
       )}
     </div>

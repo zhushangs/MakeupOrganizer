@@ -45,9 +45,16 @@ public class ImageService
         if (ext is null) return null;
         var name = Guid.NewGuid().ToString("N") + ext;
         var full = Path.Combine(_dir, name);
-        await using (var fs = File.Create(full))
+        try
         {
+            await using var fs = File.Create(full);
             await CopyLimitedAsync(content, fs, ct);
+        }
+        catch
+        {
+            // don't leave a half-written file behind (too large, cancelled, network error)
+            try { File.Delete(full); } catch { /* ignore */ }
+            throw;
         }
         return "/images/" + name;
     }
@@ -92,8 +99,10 @@ public class ImageService
         while ((n = await src.ReadAsync(buf, ct)) > 0)
         {
             total += n;
-            if (total > MaxBytes) throw new InvalidOperationException("Image is too large (over 15MB)");
+            if (total > MaxBytes) throw new ImageTooLargeException();
             await dst.WriteAsync(buf.AsMemory(0, n), ct);
         }
     }
 }
+
+public class ImageTooLargeException() : Exception("Image is too large (over 15MB)");

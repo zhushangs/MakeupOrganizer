@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { api, shrinkImage } from '../api'
 import { dominantColor } from '../color'
 import ColorSection from '../components/ColorSection'
-import { isMulti, reshapeSwatches, type Shape } from '../layout'
+import { isMulti, isSplitProduct, reshapeSwatches, type Shape } from '../layout'
 import DuplicateSheet from '../components/DuplicateSheet'
 import PaletteLayout from '../components/PaletteLayout'
 import { findDuplicate } from '../dup'
@@ -163,7 +163,7 @@ export default function EditPage({ items, brands, settings, onSaveSettings, exis
             <datalist id="brand-list">{brands.map(b => <option key={b} value={b} />)}</datalist></div>
           <div className="field"><label>Product name</label>
             <input className="input" value={f.name} onChange={e => set('name', e.target.value)} placeholder="Matte Lipstick" autoCapitalize="words" /></div>
-          <div className="field"><label>{isMulti(f) ? 'Palette / shade name' : 'Shade'}</label>
+          <div className="field"><label>{isMulti(f) && !isSplitProduct(f) ? 'Palette / shade name' : 'Shade'}</label>
             <input className="input" value={f.shadeName ?? ''} onChange={e => set('shadeName', e.target.value)} placeholder="Ruby Woo" autoCapitalize="words" /></div>
           {dup && (
             <div className="warn dup-hint">

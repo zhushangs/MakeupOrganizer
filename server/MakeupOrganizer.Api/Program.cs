@@ -1,3 +1,5 @@
+// LEGACY: this ASP.NET Core version is no longer used or maintained; the app runs on Cloudflare (worker/).
+// Only wwwroot/ (the frontend build output) is still used, by the Worker. See server/README.md.
 using System.Net;
 using MakeupOrganizer.Api;
 using Microsoft.Extensions.FileProviders;
@@ -38,11 +40,9 @@ builder.Services.AddSingleton(sp => new ImageService(dataDir,
     sp.GetRequiredService<IHttpClientFactory>(), sp.GetRequiredService<ILogger<ImageService>>()));
 builder.Services.AddSingleton<ImageSearchService>();
 
-// During development the frontend runs on Vite (5173), so allow CORS
-builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
-
+// No CORS: the Vite dev server proxies /api and /images (see client/vite.config.ts), so the browser only ever
+// talks to one origin. Allowing any origin would let any website the phone visits read and change the data.
 var app = builder.Build();
-app.UseCors();
 
 // Frontend (built into wwwroot)
 app.UseDefaultFiles();
@@ -97,8 +97,12 @@ api.MapPost("/images", async (IFormFile file, ImageService img) =>
 {
     if (file.Length > ImageService.MaxBytes) return Results.BadRequest(new { error = "Image is too large" });
     await using var s = file.OpenReadStream();
-    var path = await img.SaveAsync(s, file.ContentType);
-    return path is null ? Results.BadRequest(new { error = "Unsupported image format" }) : Results.Ok(new { path });
+    try
+    {
+        var path = await img.SaveAsync(s, file.ContentType);
+        return path is null ? Results.BadRequest(new { error = "Unsupported image format" }) : Results.Ok(new { path });
+    }
+    catch (ImageTooLargeException ex) { return Results.BadRequest(new { error = ex.Message }); }
 }).DisableAntiforgery();
 
 api.MapGet("/settings", async (SettingsStore s) => await s.GetAsync());
