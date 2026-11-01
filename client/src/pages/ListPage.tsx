@@ -103,9 +103,13 @@ export default function ListPage({ items, error, category, openItem, onChanged }
     location.replace('#' + (next === 'all' ? '/' : `/?c=${next}`))
   }
 
-  // keep the selected chip in view when the category changes (by swipe or tap)
+  // keep the selected chip in view when the category changes (by swipe or tap).
+  // Scroll only the chip row: scrollIntoView would also scroll the page itself (sideways and up/down).
   useEffect(() => {
-    document.querySelector('.chips .chip.on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+    const row = document.querySelector<HTMLElement>('.chips')
+    const chip = row?.querySelector<HTMLElement>('.chip.on')
+    if (!row || !chip) return
+    row.scrollTo({ left: chip.offsetLeft - row.offsetLeft - (row.clientWidth - chip.offsetWidth) / 2, behavior: 'smooth' })
   }, [cat])
 
   return (

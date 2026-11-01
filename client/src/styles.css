@@ -40,6 +40,10 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); }
+/* never let the page itself move sideways (the category slide-in and wide content used to make it pannable on iPhone).
+   clip, not hidden: hidden would turn these into scroll containers and break the sticky header */
+html, body { overflow-x: clip; overscroll-behavior-x: none; }
+.app { overflow-x: clip; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", Roboto, sans-serif;
   font-size: 16px;
@@ -110,11 +114,11 @@ img { display: block; max-width: 100%; }
 .sheet { overscroll-behavior: contain; }
 
 /* home: swiping to the next/previous category slides the new list in from that side */
-.swipe-pane { min-height: 60dvh; }
+.swipe-pane { min-height: 60dvh; touch-action: pan-y; } /* sideways drags are ours (category swipe), not page panning */
 .swipe-pane.from-right { animation: from-right .2s ease-out; }
 .swipe-pane.from-left { animation: from-left .2s ease-out; }
-@keyframes from-right { from { transform: translateX(28px); opacity: .4 } }
-@keyframes from-left { from { transform: translateX(-28px); opacity: .4 } }
+@keyframes from-right { from { transform: translateX(16px); opacity: .5 } }
+@keyframes from-left { from { transform: translateX(-16px); opacity: .5 } }
 
 /* item details: previous / next */
 .d-pane.from-right { animation: from-right .2s ease-out; }
