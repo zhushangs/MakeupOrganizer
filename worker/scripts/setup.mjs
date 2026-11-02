@@ -1,11 +1,12 @@
 // One-time setup + deploy to Cloudflare:
 //   1. creates the D1 database and R2 bucket (or reuses them) and writes the database id into wrangler.toml
+//      (copied from wrangler.example.toml if it doesn't exist yet)
 //   2. creates the tables
 //   3. builds the frontend and deploys the Worker
 //   4. copies the Serper API key from appsettings.Local.json into a Worker secret (if present)
 // Run from the worker folder:  npm run setup   (after `npx wrangler login`)
 import { execSync } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -19,7 +20,14 @@ const run = (cmd, opts = {}) => {
 }
 const wrangler = (args, opts) => run(`npx wrangler ${args}`, opts)
 
-// 0. logged in?
+// 0. own config file (git-ignored) from the template
+const tomlPath = join(root, 'wrangler.toml')
+if (!existsSync(tomlPath)) {
+  copyFileSync(join(root, 'wrangler.example.toml'), tomlPath)
+  console.log('Created wrangler.toml from wrangler.example.toml')
+}
+
+// logged in?
 try {
   wrangler('whoami', { capture: true })
 } catch {
@@ -36,7 +44,6 @@ if (!dbId) {
   dbId = JSON.parse(wrangler('d1 list --json', { capture: true })).find(d => d.name === DB)?.uuid
 }
 if (!dbId) throw new Error('Could not find the D1 database id')
-const tomlPath = join(root, 'wrangler.toml')
 writeFileSync(tomlPath, readFileSync(tomlPath, 'utf8').replace(/database_id = ".*"/, `database_id = "${dbId}"`))
 console.log(`D1 database: ${dbId} (saved to wrangler.toml)`)
 

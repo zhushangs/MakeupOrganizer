@@ -75,7 +75,7 @@ Everything runs on Cloudflare's free tier: the Worker serves the app and the API
    npx wrangler login        # opens the browser to authorize
    npm run setup             # creates the database + bucket, builds and deploys
    ```
-   `setup` prints the address, e.g. `https://makeup-organizer.<your-subdomain>.workers.dev`.
+   `setup` copies `wrangler.example.toml` to `wrangler.toml` (your own copy, not committed), fills in your database id, and prints the address, e.g. `https://makeup-organizer.<your-subdomain>.workers.dev`.
 4. Open the address on your phone and **Add to Home Screen**.
 
 ### Image search (Serper)
@@ -152,4 +152,5 @@ The app started as an ASP.NET Core (.NET 8) server in `server/MakeupOrganizer.Ap
 What still matters in that folder:
 
 - `server/MakeupOrganizer.Api/wwwroot/` is the frontend build output, served by the Worker (`worker/wrangler.toml`). Don't delete it.
+- `worker/wrangler.toml` is git-ignored because it holds your own database id; the committed template is `worker/wrangler.example.toml`. If you change settings there (e.g. the cron schedule), change the example too.
 - `npm run migrate-data` (in `worker/`) copied the old local data to Cloudflare. It's only needed if there is still old local data to bring over.

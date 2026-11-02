@@ -8,6 +8,8 @@ server/MakeupOrganizer.Api/appsettings.Local.json
 client/public/ocr/
 worker/.wrangler/
 worker/.dev.vars
+# your own Cloudflare config (copied from worker/wrangler.example.toml)
+worker/wrangler.toml
 *.tsbuildinfo
 # personal data: one-time inventory import, and Cloudflare backups (npm run backup)
 import-once/
