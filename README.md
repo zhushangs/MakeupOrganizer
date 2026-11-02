@@ -106,6 +106,8 @@ The pictures, data and image search are all behind the password; only the app ic
 
 - If the password secret is ever missing, the app shows a "no password is set" page instead of opening up (only `wrangler dev` on localhost stays open). To run without a password on purpose, set the variable `ALLOW_OPEN=1`.
 - 5 wrong passwords from one network, or 30 in total, within 15 minutes locks sign-in until the 15 minutes are up. Phones that are already signed in keep working.
+  - The lockout is counted in D1. If D1 can't be reached, sign-in is allowed rather than locking you out, so the lockout isn't guaranteed; a long password is the real protection. For a hard limit, add a Cloudflare Rate Limiting rule for `POST /login` (Security → WAF → Rate limiting rules).
+- Signing out removes the sign-in cookie, but pictures the browser has already cached (they're cached for speed) can stay in that browser. On a shared or borrowed device, also clear its browsing data.
 
 Alternatively you can use Cloudflare Access (email one-time codes): Workers & Pages → makeup-organizer → Settings → Domains & Routes → **Enable Access** next to `workers.dev`. Its free plan may ask for a payment method.
 

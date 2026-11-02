@@ -63,6 +63,10 @@ const DEFAULT_CATEGORIES: CategoryDef[] = [
 ]
 
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024
+/** An upload request may be a little bigger than the picture itself (multipart headers and boundary) */
+const MAX_UPLOAD_BODY_BYTES = MAX_IMAGE_BYTES + 64 * 1024
+/** Give up on a picture download that takes longer than this */
+const DOWNLOAD_TIMEOUT_MS = 15_000
 const EXT_BY_TYPE: Record<string, string> = {
   'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif', 'image/avif': '.avif',
 }
@@ -93,6 +97,34 @@ async function readJson<T extends object = Record<string, unknown>>(req: Request
   try { v = await req.json() } catch { throw new HttpError('The request body is not valid JSON') }
   if (typeof v !== 'object' || v === null || Array.isArray(v)) throw new HttpError('The request body must be a JSON object')
   return v as Partial<T>
+}
+
+/** Read a stream into memory, stopping (and cancelling it) as soon as it goes over `max` bytes */
+async function readCapped(body: ReadableStream<Uint8Array>, max: number): Promise<ArrayBuffer> {
+  const reader = body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > max) {
+      await reader.cancel().catch(() => {})
+      throw new HttpError('Image is too large (over 15MB)', 413)
+    }
+    chunks.push(value)
+  }
+  const out = new Uint8Array(total)
+  let offset = 0
+  for (const c of chunks) { out.set(c, offset); offset += c.byteLength }
+  return out.buffer
+}
+
+/** The declared body size, or null if the header is missing or not a number */
+function contentLength(headers: Headers): number | null {
+  const v = headers.get('content-length')
+  const n = v === null ? NaN : Number(v)
+  return Number.isFinite(n) && n >= 0 ? n : null
 }
 
 async function readForm(req: Request): Promise<FormData> {
@@ -212,12 +244,11 @@ async function deleteImageIfUnused(env: Env, path?: string | null) {
   if (!(await isImageReferenced(env, path))) await env.IMAGES.delete(path.slice('/images/'.length))
 }
 
-async function saveImage(env: Env, body: ReadableStream | ArrayBuffer, contentType: string | null): Promise<string | null> {
+async function saveImage(env: Env, buf: ArrayBuffer, contentType: string | null): Promise<string | null> {
   const type = (contentType ?? '').split(';')[0].trim().toLowerCase()
   const ext = EXT_BY_TYPE[type]
   if (!ext) return null
-  const buf = body instanceof ArrayBuffer ? body : await new Response(body).arrayBuffer()
-  if (buf.byteLength > MAX_IMAGE_BYTES) throw new Error('Image is too large (over 15MB)')
+  if (buf.byteLength > MAX_IMAGE_BYTES) throw new HttpError('Image is too large (over 15MB)', 413)
   const name = crypto.randomUUID().replace(/-/g, '') + ext
   await env.IMAGES.put(name, buf, { httpMetadata: { contentType: type, cacheControl: IMAGE_CACHE } })
   return '/images/' + name
@@ -230,11 +261,16 @@ async function downloadImage(env: Env, url: string): Promise<string | null> {
     const res = await fetch(u.toString(), {
       headers: { 'user-agent': UA, accept: 'image/jpeg,image/png,image/webp;q=0.9,image/*;q=0.5' },
       redirect: 'follow',
+      signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
     })
-    if (!res.ok) return null
     const type = res.headers.get('content-type')
-    if (!type?.startsWith('image/')) return null
-    return await saveImage(env, await res.arrayBuffer(), type)
+    const declared = contentLength(res.headers)
+    // check what we can before reading the body, and never read more than the limit
+    if (!res.ok || !res.body || !type?.startsWith('image/') || (declared !== null && declared > MAX_IMAGE_BYTES)) {
+      await res.body?.cancel().catch(() => {})
+      return null
+    }
+    return await saveImage(env, await readCapped(res.body, MAX_IMAGE_BYTES), type)
   } catch {
     return null
   }
@@ -336,15 +372,19 @@ async function handleApi(req: Request, env: Env, url: URL): Promise<Response> {
 
   // images
   if (path === '/api/images' && method === 'POST') {
-    const form = await readForm(req)
+    // refuse an oversized upload before parsing it (parsing reads the whole body into memory)
+    const declared = contentLength(req.headers)
+    if (declared !== null && declared > MAX_UPLOAD_BODY_BYTES) return error('Image is too large (over 15MB)', 413)
+    // no Content-Length (chunked upload): read it with the limit applied, then parse
+    const form = await readForm(declared !== null || !req.body ? req : new Request(req.url, {
+      method: 'POST',
+      headers: { 'content-type': req.headers.get('content-type') ?? '' },
+      body: await readCapped(req.body, MAX_UPLOAD_BODY_BYTES),
+    }))
     const file = form.get('file')
     if (!file || typeof file === 'string') return error('No file')
-    try {
-      const saved = await saveImage(env, await file.arrayBuffer(), file.type)
-      return saved ? json({ path: saved }) : error('Unsupported image format')
-    } catch (e) {
-      return error((e as Error).message)
-    }
+    const saved = await saveImage(env, await file.arrayBuffer(), file.type)
+    return saved ? json({ path: saved }) : error('Unsupported image format')
   }
   if (path === '/api/images/from-url' && method === 'POST') {
     const body = await readJson<{ url: string; fallbackUrl: string }>(req)
@@ -400,8 +440,9 @@ export default {
       return env.ASSETS.fetch(req)
     } catch (e) {
       if (e instanceof HttpError) return error(e.message, e.status)
+      // details go to the Worker log (`npx wrangler tail`), not to the client
       console.error(e)
-      return error('Server error: ' + (e as Error).message, 500)
+      return error('Server error', 500)
     }
   },
 

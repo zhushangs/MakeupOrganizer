@@ -106,6 +106,8 @@ npm run set-password      # 输入想要的密码（不显示），然后回车
 
 - 如果密码 secret 丢失了，App 会显示 “no password is set” 页面，而不是直接开放（只有在本机运行的 `wrangler dev` 是开放的）。如果确实想不设密码，把变量 `ALLOW_OPEN=1` 设上。
 - 15 分钟内，同一个网络输错 5 次密码，或者总共输错 30 次，会锁住登录直到 15 分钟过去。已经登录的手机不受影响。
+  - 锁定次数记在 D1 里。如果连不上 D1，登录会放行，而不是把你锁在外面，所以锁定不能保证一直生效；真正的保护是足够长的密码。如果想要硬性限制，可以在 Cloudflare 给 `POST /login` 加一条 Rate Limiting 规则（Security → WAF → Rate limiting rules）。
+- 退出登录会删除登录 cookie，但浏览器已经缓存的图片（为了加快速度）可能还留在那个浏览器里。在共用或借来的设备上，退出后也请清除浏览数据。
 
 也可以改用 Cloudflare Access（邮箱一次性验证码）：Workers & Pages → makeup-organizer → Settings → Domains & Routes → 在 `workers.dev` 旁边点 **Enable Access**。它的免费套餐可能要求绑定付款方式。
 
