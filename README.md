@@ -27,7 +27,9 @@ It runs on Cloudflare (Workers + D1 + R2): always on, works anywhere, nothing to
 client/                      React + Vite frontend source
 worker/                      Cloudflare Worker backend (TypeScript): API + D1 database + R2 pictures
   ├─ migrations/             D1 tables (npm run setup / npm run migrate-db)
-  └─ scripts/                setup, deploy helpers, data migration, backup
+  ├─ scripts/                setup, deploy helpers, data migration, backup
+  ├─ wrangler.example.toml   Cloudflare config template (committed)
+  └─ wrangler.toml           your own copy with your database id (git-ignored, made by npm run setup)
 server/MakeupOrganizer.Api   LEGACY ASP.NET Core backend, not used anymore
   └─ wwwroot/                STILL USED: the frontend build output that the Worker serves
 backups/                     Cloudflare backups made by `npm run backup` (git-ignored)
@@ -116,6 +118,21 @@ npm run deploy
 
 `deploy` builds the frontend (into `server/MakeupOrganizer.Api/wwwroot`) and deploys the Worker. Plain `npx wrangler deploy` uploads whatever was built last, so frontend changes only go live after a build. Database tables are created by `npm run setup`; the sign-in lockout table is also created by the Worker itself, so deploying never needs `npm run migrate-db`.
 
+### Your config file: wrangler.toml
+
+`worker/wrangler.toml` holds your own Cloudflare database id, so it is git-ignored; the committed template is `worker/wrangler.example.toml`. `npm run setup` creates `wrangler.toml` from the template for you. If you skip setup (for example to only run it locally), copy it yourself:
+
+```
+cd worker
+copy wrangler.example.toml wrangler.toml
+```
+
+If you change a setting (for example the cleanup schedule under `[triggers]`), change it in both files so the template stays up to date.
+
+### Sharing this repository
+
+The repository only holds code. Your items, categories and pictures live in your own Cloudflare account (D1 + R2), and the Serper key and app password are Cloudflare secrets, so none of them are in git. Someone who clones the repo goes through [One-time setup](#one-time-setup-on-your-pc-needs-nodejs-18) with their own Cloudflare account, Serper key and password, and gets their own empty app. (Screenshots in `docs/screenshots/` are public, though.)
+
 ### Notes
 
 - Pictures that were downloaded or uploaded but never saved to an item are cleaned up daily (cron trigger).
@@ -128,6 +145,7 @@ Run the Worker locally (local database and pictures, no password on localhost), 
 
 ```
 cd worker
+copy wrangler.example.toml wrangler.toml                     # first time only, if you haven't run npm run setup
 npx wrangler d1 migrations apply makeup-organizer --local    # first time only
 npm run dev                                                  # Worker at http://localhost:8787
 
@@ -152,5 +170,4 @@ The app started as an ASP.NET Core (.NET 8) server in `server/MakeupOrganizer.Ap
 What still matters in that folder:
 
 - `server/MakeupOrganizer.Api/wwwroot/` is the frontend build output, served by the Worker (`worker/wrangler.toml`). Don't delete it.
-- `worker/wrangler.toml` is git-ignored because it holds your own database id; the committed template is `worker/wrangler.example.toml`. If you change settings there (e.g. the cron schedule), change the example too.
 - `npm run migrate-data` (in `worker/`) copied the old local data to Cloudflare. It's only needed if there is still old local data to bring over.
