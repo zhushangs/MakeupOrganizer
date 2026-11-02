@@ -1,5 +1,7 @@
 # Vanity — Makeup Organizer
 
+English | [中文](README.zh-CN.md)
+
 A small web app for cataloging makeup. Add an item (brand, product, shade, where you bought it, original and paid price, notes), then pick a picture from an online image search. A color card is generated from the picture automatically, and you can fine-tune it with an eyedropper or color picker. Each category can be viewed as one color chart, and both single cards and charts can be saved as images.
 
 It runs on Cloudflare (Workers + D1 + R2): always on, works anywhere, nothing to start. See [Hosting on Cloudflare](#hosting-on-cloudflare).
