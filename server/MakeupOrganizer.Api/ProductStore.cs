@@ -95,8 +95,8 @@ public class ProductStore
 
     private static void Normalize(Product p)
     {
-        p.GridRows = Math.Clamp(p.GridRows, 1, 10);
-        p.GridCols = Math.Clamp(p.GridCols, 1, 10);
+        p.GridRows = Math.Clamp(p.GridRows, 1, 12);
+        p.GridCols = Math.Clamp(p.GridCols, 1, 12);
         p.Layout = ValidLayout(p.GridRows, p.GridCols, p.Layout);
         var n = p.Layout is null ? p.GridRows * p.GridCols : p.Layout.Max() + 1;
         p.Swatches ??= new();

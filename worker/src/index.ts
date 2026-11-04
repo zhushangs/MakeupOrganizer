@@ -77,6 +77,8 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8' } })
 const error = (message: string, status = 400) => json({ error: message }, status)
+/** Most rows / columns a palette grid can have (e.g. a 1 × 12 palette) */
+const MAX_GRID = 12
 const clamp = (n: unknown, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.trunc(Number(n) || lo)))
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
 const optStr = (v: unknown) => str(v) || null
@@ -154,8 +156,8 @@ function validLayout(rows: number, cols: number, layout: unknown): number[] | nu
 
 /** Same rules as ProductStore.Normalize in the C# version */
 function normalizeProduct(input: any, id: string, createdAt: string): Product {
-  const gridRows = clamp(input?.gridRows, 1, 10)
-  const gridCols = clamp(input?.gridCols, 1, 10)
+  const gridRows = clamp(input?.gridRows, 1, MAX_GRID)
+  const gridCols = clamp(input?.gridCols, 1, MAX_GRID)
   const layout = validLayout(gridRows, gridCols, input?.layout)
   const pans = layout ? Math.max(...layout) + 1 : gridRows * gridCols
   const swatches: Swatch[] = (Array.isArray(input?.swatches) ? input.swatches : []).slice(0, pans).map((s: any) => {
@@ -198,8 +200,8 @@ function normalizeSettings(input: any): AppSettings {
       if (!key) key = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'c' + newId().slice(0, 8)
       return {
         key, label, multi,
-        defaultRows: multi ? clamp(c?.defaultRows, 1, 10) : 1,
-        defaultCols: multi ? clamp(c?.defaultCols, 1, 10) : 1,
+        defaultRows: multi ? clamp(c?.defaultRows, 1, MAX_GRID) : 1,
+        defaultCols: multi ? clamp(c?.defaultCols, 1, MAX_GRID) : 1,
       }
     })
     .filter((c: CategoryDef) => c.label && c.key !== 'all' && !seen.has(c.key.toLowerCase()) && seen.add(c.key.toLowerCase()))

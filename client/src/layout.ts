@@ -15,6 +15,9 @@ export interface Shape {
 
 export interface PanRect { r: number; c: number; rs: number; cs: number }
 
+/** Most rows / columns a palette grid can have (e.g. a 1 × 12 palette); the server clamps to the same */
+export const MAX_GRID = 12
+
 export function cellMap(s: Shape): number[] {
   const n = s.gridRows * s.gridCols
   return s.layout && s.layout.length === n ? s.layout : Array.from({ length: n }, (_, i) => i)

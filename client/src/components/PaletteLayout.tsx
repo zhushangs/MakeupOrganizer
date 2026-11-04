@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { cellMap, mergeCells, normalizeLayout, panCount, panRects, splitPan, type Shape } from '../layout'
+import { MAX_GRID, cellMap, mergeCells, normalizeLayout, panCount, panRects, splitPan, type Shape } from '../layout'
 import PanGrid from './PanGrid'
 
 /**
@@ -47,7 +47,7 @@ export default function PaletteLayout({ value, onChange, allowCustom = true }: {
 
   const setGrid = (r: number, c: number) => {
     setSelected([]); setMsg(null)
-    onChange(g(Math.max(1, Math.min(10, r)), Math.max(1, Math.min(10, c))))
+    onChange(g(Math.max(1, Math.min(MAX_GRID, r)), Math.max(1, Math.min(MAX_GRID, c))))
   }
   const pans = panCount(value)
   const merged = panRects(value).map(p => p.rs * p.cs > 1)
@@ -121,7 +121,7 @@ function Stepper({ value, onChange }: { value: number; onChange: (v: number) => 
     <span className="stepper">
       <button type="button" onClick={() => onChange(value - 1)} disabled={value <= 1} aria-label="Decrease">−</button>
       <span>{value}</span>
-      <button type="button" onClick={() => onChange(value + 1)} disabled={value >= 10} aria-label="Increase">+</button>
+      <button type="button" onClick={() => onChange(value + 1)} disabled={value >= MAX_GRID} aria-label="Increase">+</button>
     </span>
   )
 }

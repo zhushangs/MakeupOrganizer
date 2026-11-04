@@ -80,8 +80,8 @@ public class SettingsStore
             {
                 c.Label = c.Label.Trim();
                 c.Key = string.IsNullOrWhiteSpace(c.Key) ? Slug(c.Label) : c.Key.Trim();
-                c.DefaultRows = Math.Clamp(c.DefaultRows, 1, 10);
-                c.DefaultCols = Math.Clamp(c.DefaultCols, 1, 10);
+                c.DefaultRows = Math.Clamp(c.DefaultRows, 1, 12);
+                c.DefaultCols = Math.Clamp(c.DefaultCols, 1, 12);
                 if (!c.Multi) c.DefaultRows = c.DefaultCols = 1;
                 return c;
             })
