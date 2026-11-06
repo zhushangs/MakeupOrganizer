@@ -57,6 +57,16 @@ export default function ColorSection({ value, imagePath, showLayout, onChange }:
         // palettes, and older non-palette items with a custom palette shape
         : (showLayout || multi) && <PaletteLayout value={value} onChange={setShape} />}
 
+      <div className="field">
+        <label>{multi ? `${unit} ${cur + 1} finish` : 'Finish'}</label>
+        <div className="seg finish-seg">
+          {FINISHES.map(f => (
+            <button key={f} type="button" className={finishOf(value.swatches[cur]?.finish) === f ? 'on' : ''}
+              onClick={() => patchCell(cur, { finish: f === 'matte' ? null : f })}>{FINISH_LABELS[f]}</button>
+          ))}
+        </div>
+      </div>
+
       {/* the color card being edited (a single color too, so its finish can be seen) */}
       {(
         <PanGrid shape={value} className="edit-grid" style={split || !multi ? { aspectRatio: '1', maxWidth: 220 } : undefined}>
@@ -90,16 +100,6 @@ export default function ColorSection({ value, imagePath, showLayout, onChange }:
           if (fromImage && multi) setSel(Math.min(cur + 1, cells - 1))
         }}
       />
-      <div className="field">
-        <label>{multi ? `${unit} ${cur + 1} finish` : 'Finish'}</label>
-        <div className="seg finish-seg">
-          {FINISHES.map(f => (
-            <button key={f} type="button" className={finishOf(value.swatches[cur]?.finish) === f ? 'on' : ''}
-              onClick={() => patchCell(cur, { finish: f === 'matte' ? null : f })}>{FINISH_LABELS[f]}</button>
-          ))}
-        </div>
-      </div>
-
       {!multi && imagePath && (
         <button type="button" className="link-btn" style={{ alignSelf: 'flex-start' }}
           onClick={async () => { const c = await dominantColor(imagePath).catch(() => null); if (c) patchCell(0, { hex: c }) }}>
