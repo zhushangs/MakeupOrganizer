@@ -41,7 +41,7 @@ function tile(key: string, size: number, draw: (ctx: CanvasRenderingContext2D, r
  * Texture tiles, shared by the canvas painter and the on-screen CSS (installFinishTextures), so both
  * look the same in every browser. Each tile is drawn TILE_CSS[name] "CSS px" wide on a ~170px swatch.
  */
-const TILE_CSS = { shimmer: 128, glitter: 128, grain: 128 }
+const TILE_CSS = { shimmer: 128, glitter: 150, grain: 128 }
 
 /** Shimmer: lots of fine white dust */
 const shimmerTile = () => tile('shimmer', 512, (ctx, rand) => {
@@ -54,30 +54,93 @@ const shimmerTile = () => tile('shimmer', 512, (ctx, rand) => {
   }
 })
 
-/** Glitter: fewer, much bigger flakes in a few tints, some with a little star glint */
-const glitterTile = () => tile('glitter', 512, (ctx, rand) => {
-  const tints = ['255,255,255', '255,244,214', '255,226,236', '224,238,255']
-  for (let i = 0; i < 150; i++) {
-    const x = rand() * 512, y = rand() * 512
-    const r = 4.5 + rand() * 6
-    ctx.fillStyle = `rgba(${tints[Math.floor(rand() * tints.length)]},${0.75 + rand() * 0.25})`
-    ctx.beginPath()
-    // hexagon-ish flake
-    const rot = rand() * Math.PI
-    for (let k = 0; k < 6; k++) {
-      const a = rot + (k * Math.PI) / 3
-      ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r * (0.7 + rand() * 0.3))
+/** Draw at (x, y) and again across the tile edges, so a tile repeats without visible seams */
+function wrapped(size: number, x: number, y: number, r: number, draw: (x: number, y: number) => void) {
+  for (const dx of [0, -size, size]) {
+    for (const dy of [0, -size, size]) {
+      if ((dx === 0 || Math.abs(x + dx - size / 2) < size / 2 + r) && (dy === 0 || Math.abs(y + dy - size / 2) < size / 2 + r)) draw(x + dx, y + dy)
     }
-    ctx.closePath()
-    ctx.fill()
-    if (rand() < 0.12) {
-      ctx.strokeStyle = 'rgba(255,255,255,.9)'
-      ctx.lineWidth = 1.6
-      ctx.beginPath()
-      ctx.moveTo(x - r * 1.9, y); ctx.lineTo(x + r * 1.9, y)
-      ctx.moveTo(x, y - r * 1.9); ctx.lineTo(x, y + r * 1.9)
-      ctx.stroke()
+  }
+}
+
+/** Flake outline: a hexagon (sequins) or an irregular chip */
+function flake(ctx: CanvasRenderingContext2D, rand: () => number, x: number, y: number, r: number, hex: boolean) {
+  const n = hex ? 6 : 4 + Math.floor(rand() * 3)
+  const rot = rand() * Math.PI
+  ctx.beginPath()
+  for (let k = 0; k < n; k++) {
+    const a = rot + (k * Math.PI * 2) / n
+    const rr = hex ? r : r * (0.6 + rand() * 0.5)
+    ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr)
+  }
+  ctx.closePath()
+}
+
+/**
+ * Glitter, tone layer (blended with "overlay", so every flake is a lighter or darker shade of the
+ * color itself): fine dust, chips, and big hexagonal sequins with a light and a dark facet.
+ */
+const glitterTone = () => tile('glitter-tone', 512, (ctx, rand) => {
+  ctx.fillStyle = 'rgb(128,128,128)'
+  ctx.fillRect(0, 0, 512, 512)
+  const gray = (v: number, a = 1) => `rgba(${v},${v},${v},${a})`
+  const layers: [number, number, number, boolean][] = [
+    // count, min r, max r, hexagon
+    [8000, 1.2, 3, false],
+    [1300, 3, 7, false],
+    [260, 6, 11, true],
+    [45, 11, 17, true],
+  ]
+  for (const [count, r0, r1, hex] of layers) {
+    for (let i = 0; i < count; i++) {
+      const x = rand() * 512, y = rand() * 512, r = r0 + rand() * (r1 - r0)
+      const light = 70 + rand() * 175
+      const shine = rand()
+      wrapped(512, x, y, r, (px, py) => {
+        flake(ctx, rand, px, py, r, hex)
+        if (hex || r > 4) {
+          // a facet that catches the light on one side and is darker on the other
+          const a = shine * Math.PI * 2
+          const g = ctx.createLinearGradient(px - Math.cos(a) * r, py - Math.sin(a) * r, px + Math.cos(a) * r, py + Math.sin(a) * r)
+          g.addColorStop(0, gray(Math.min(255, light + 70)))
+          g.addColorStop(0.5, gray(light))
+          g.addColorStop(1, gray(Math.max(30, light - 80)))
+          ctx.fillStyle = g
+        } else ctx.fillStyle = gray(light)
+        ctx.fill()
+      })
     }
+  }
+})
+
+/**
+ * Glitter, sparkle layer (blended with "screen"): iridescent tints on some flakes, and soft
+ * glints where a flake catches the light.
+ */
+const glitterSpark = () => tile('glitter-spark', 512, (ctx, rand) => {
+  const tints = ['140,220,255', '255,170,220', '255,225,150', '190,170,255', '170,255,220']
+  for (let i = 0; i < 140; i++) {
+    const x = rand() * 512, y = rand() * 512, r = 4 + rand() * 10
+    const t = tints[Math.floor(rand() * tints.length)]
+    wrapped(512, x, y, r, (px, py) => {
+      flake(ctx, rand, px, py, r, rand() < 0.6)
+      const g = ctx.createRadialGradient(px - r * 0.3, py - r * 0.3, 0, px, py, r)
+      g.addColorStop(0, `rgba(${t},.6)`)
+      g.addColorStop(1, `rgba(${t},.05)`)
+      ctx.fillStyle = g
+      ctx.fill()
+    })
+  }
+  for (let i = 0; i < 230; i++) {
+    const x = rand() * 512, y = rand() * 512, r = 1.5 + rand() * 3.5
+    wrapped(512, x, y, r * 2, (px, py) => {
+      const g = ctx.createRadialGradient(px, py, 0, px, py, r * 2)
+      g.addColorStop(0, 'rgba(255,255,255,.95)')
+      g.addColorStop(0.25, 'rgba(255,255,255,.55)')
+      g.addColorStop(1, 'rgba(255,255,255,0)')
+      ctx.fillStyle = g
+      ctx.fillRect(px - r * 2, py - r * 2, r * 4, r * 4)
+    })
   }
 })
 
@@ -92,12 +155,13 @@ const grain = () => tile('grain', 256, (ctx, rand) => {
   ctx.putImageData(img, 0, 0)
 })
 
-/** Put the tiles into CSS variables (--tex-shimmer, --tex-glitter, --tex-grain) used by .fin-* */
+/** Put the tiles into CSS variables (--tex-shimmer, --tex-glitter-tone / -spark, --tex-grain) used by .fin-* */
 export function installFinishTextures() {
   try {
     const root = document.documentElement.style
     root.setProperty('--tex-shimmer', `url(${shimmerTile().toDataURL()})`)
-    root.setProperty('--tex-glitter', `url(${glitterTile().toDataURL()})`)
+    root.setProperty('--tex-glitter-tone', `url(${glitterTone().toDataURL()})`)
+    root.setProperty('--tex-glitter-spark', `url(${glitterSpark().toDataURL()})`)
     root.setProperty('--tex-grain', `url(${grain().toDataURL()})`)
   } catch { /* no canvas: swatches just show without texture */ }
 }
@@ -186,8 +250,12 @@ export function paintFinish(ctx: CanvasRenderingContext2D, finish: Finish | null
     ctx.fillStyle = g
     ctx.fillRect(x, y, w, h)
   } else if (f === 'glitter') {
-    ctx.globalCompositeOperation = 'source-over'
-    fillTile(ctx, glitterTile(), x, y, w, h, (u * TILE_CSS.glitter) / 512)
+    const px = (u * TILE_CSS.glitter) / 512
+    ctx.globalCompositeOperation = 'overlay'
+    fillTile(ctx, glitterTone(), x, y, w, h, px)
+    ctx.globalCompositeOperation = 'screen'
+    ctx.globalAlpha = 0.8
+    fillTile(ctx, glitterSpark(), x, y, w, h, px)
   }
   ctx.restore()
 }

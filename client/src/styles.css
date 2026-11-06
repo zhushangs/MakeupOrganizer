@@ -453,7 +453,8 @@ img { display: block; max-width: 100%; }
 .fin-shimmer::after { background: var(--tex-shimmer); background-size: 128px; mix-blend-mode: screen; }
 .fin-metallic::before { background: var(--tex-grain); background-size: 128px; mix-blend-mode: overlay; opacity: .5; }
 .fin-metallic::after { background: var(--tex-shimmer), radial-gradient(ellipse 80% 70% at 45% 35%, rgba(255,255,255,.06), transparent 60%, rgba(0,0,0,.16)); background-size: 128px, 100% 100%; mix-blend-mode: screen; opacity: .5; box-shadow: inset 0 0 18px rgba(0,0,0,.18); }
-.fin-glitter::before { background: var(--tex-glitter); background-size: 128px; }
+.fin-glitter::before { background: var(--tex-glitter-tone); background-size: 150px; mix-blend-mode: overlay; }
+.fin-glitter::after { background: var(--tex-glitter-spark); background-size: 150px; mix-blend-mode: screen; opacity: .8; }
 .pcell, .sc-color, .sc-pan, .hex-row .dot, .dup-swatch { position: relative; overflow: hidden; }
 .finish-seg { display: flex; flex-wrap: wrap; }
 .finish-seg button { flex: 1; padding: 6px 4px; font-size: 13px; }
