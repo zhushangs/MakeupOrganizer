@@ -1,3 +1,4 @@
+import FinishLayer from './FinishLayer'
 import type { Product } from '../types'
 import Sheet from './Sheet'
 
@@ -15,7 +16,7 @@ export default function DuplicateSheet({ existing, onView, onAddAnyway, onClose 
       <div className="dup-item">
         {existing.imagePath
           ? <img src={existing.imagePath} alt="" />
-          : <span className="dup-swatch" style={{ background: hex ?? undefined }} />}
+          : <span className="dup-swatch" style={{ background: hex ?? undefined }}>{hex && <FinishLayer finish={existing.swatches[0]?.finish} />}</span>}
         <div>
           <div className="ic-brand">{existing.brand}</div>
           <div className="ic-shade">{existing.shadeName || existing.name}</div>

@@ -1,6 +1,7 @@
 import { categoryOf, type Product } from './types'
 import { isDark, loadImage } from './color'
 import { isMulti, isSplitProduct, panRects } from './layout'
+import { paintFinish } from './finish'
 
 /** Color cards drawn on a canvas so they can be saved as PNG. */
 
@@ -37,6 +38,7 @@ function drawSwatch(ctx: CanvasRenderingContext2D, p: Product, x: number, y: num
   if (!isMulti(p)) {
     ctx.fillStyle = p.swatches[0]?.hex ?? EMPTY
     ctx.fillRect(x, y, w, h)
+    if (p.swatches[0]?.hex) paintFinish(ctx, p.swatches[0].finish, x, y, w, h)
   } else {
     const gap = Math.max(2, Math.round(w * 0.012))
     ctx.fillStyle = '#ffffff'
@@ -45,8 +47,11 @@ function drawSwatch(ctx: CanvasRenderingContext2D, p: Product, x: number, y: num
     const ch = (h - gap * (p.gridRows - 1)) / p.gridRows
     // pans can span several cells (layout); draw each pan over its whole area
     panRects(p).forEach((r, i) => {
+      const px = x + r.c * (cw + gap), py = y + r.r * (ch + gap)
+      const pw = r.cs * cw + (r.cs - 1) * gap, ph = r.rs * ch + (r.rs - 1) * gap
       ctx.fillStyle = p.swatches[i]?.hex ?? EMPTY
-      ctx.fillRect(x + r.c * (cw + gap), y + r.r * (ch + gap), r.cs * cw + (r.cs - 1) * gap, r.rs * ch + (r.rs - 1) * gap)
+      ctx.fillRect(px, py, pw, ph)
+      if (p.swatches[i]?.hex) paintFinish(ctx, p.swatches[i].finish, px, py, pw, ph)
     })
   }
   ctx.restore()

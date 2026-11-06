@@ -24,7 +24,12 @@ export interface Env {
 
 // ---------------------------------------------------------------- types
 
-interface Swatch { hex?: string | null; label?: string | null }
+interface Swatch {
+  hex?: string | null
+  label?: string | null
+  /** texture: satin / shimmer / metallic / glitter; null = matte */
+  finish?: string | null
+}
 
 interface Product {
   id: string
@@ -79,6 +84,8 @@ const json = (data: unknown, status = 200) =>
 const error = (message: string, status = 400) => json({ error: message }, status)
 /** Most rows / columns a palette grid can have (e.g. a 1 × 12 palette) */
 const MAX_GRID = 12
+/** Color finishes the app knows; matte is stored as null */
+const FINISHES = ['matte', 'satin', 'shimmer', 'metallic', 'glitter']
 const clamp = (n: unknown, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.trunc(Number(n) || lo)))
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
 const optStr = (v: unknown) => str(v) || null
@@ -162,7 +169,8 @@ function normalizeProduct(input: any, id: string, createdAt: string): Product {
   const pans = layout ? Math.max(...layout) + 1 : gridRows * gridCols
   const swatches: Swatch[] = (Array.isArray(input?.swatches) ? input.swatches : []).slice(0, pans).map((s: any) => {
     const hex = typeof s?.hex === 'string' && /^#[0-9a-f]{6}$/i.test(s.hex) ? s.hex.toLowerCase() : null
-    return { hex, label: optStr(s?.label) }
+    const finish = FINISHES.includes(s?.finish) && s.finish !== 'matte' ? s.finish as string : null
+    return { hex, label: optStr(s?.label), finish }
   })
   while (swatches.length < pans) swatches.push({ hex: null, label: null })
   const imagePath = typeof input?.imagePath === 'string' && /^\/images\/[\w.-]+$/.test(input.imagePath) ? input.imagePath : null

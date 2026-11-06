@@ -1,6 +1,9 @@
+import type { Finish } from './finish'
 export interface Swatch {
   hex?: string | null
   label?: string | null
+  /** texture: matte (default when missing), satin, shimmer, metallic, glitter */
+  finish?: Finish | null
 }
 
 export interface Product {

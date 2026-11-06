@@ -109,6 +109,8 @@ public class ProductStore
             s.Hex = s.Hex?.ToLowerInvariant();
         }
         foreach (var s in p.Swatches) s.Label = OptStr(s.Label);
+        string[] finishes = ["satin", "shimmer", "metallic", "glitter"];
+        foreach (var s in p.Swatches) if (!finishes.Contains(s.Finish)) s.Finish = null;
         // same rules as normalizeProduct in worker/src/index.ts
         p.Category = string.IsNullOrWhiteSpace(p.Category) ? "other" : p.Category.Trim();
         p.Brand = p.Brand?.Trim() ?? "";

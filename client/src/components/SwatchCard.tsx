@@ -1,3 +1,4 @@
+import FinishLayer from './FinishLayer'
 import { isDark } from '../color'
 import { categoryOf, type Product } from '../types'
 import { isMulti, isSplitProduct } from '../layout'
@@ -20,14 +21,16 @@ export default function SwatchCard({ p }: { p: Product }) {
             const s = p.swatches[i] ?? {}
             return (
               <div className="sc-pan" style={{ background: s.hex ?? undefined, color: isDark(s.hex) ? '#fff' : '#2a2321' }}>
-                {s.label}
+                {s.hex && <FinishLayer finish={s.finish} />}
+                {s.label && <span>{s.label}</span>}
               </div>
             )
           }}
         </PanGrid>
       ) : (
         <div className="sc-color" style={{ background: hex ?? undefined, color: isDark(hex) ? 'rgba(255,255,255,.85)' : 'rgba(42,35,33,.7)' }}>
-          {hex ? hex.toUpperCase() : 'No color yet'}
+          {hex && <FinishLayer finish={p.swatches[0]?.finish} />}
+          <span>{hex ? hex.toUpperCase() : 'No color yet'}</span>
         </div>
       )}
       <div className="sc-text">

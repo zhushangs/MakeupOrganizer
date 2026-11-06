@@ -1,3 +1,5 @@
+import FinishLayer from './FinishLayer'
+import type { Finish } from '../finish'
 import { useEffect, useRef, useState } from 'react'
 import { HexColorPicker } from 'react-colorful'
 import { hexToRgb, loadImage, sampleAt } from '../color'
@@ -8,9 +10,11 @@ interface Props {
   onChange: (hex: string, fromImage: boolean) => void
   images: { label: string; src: string }[]
   hint?: string
+  /** finish of this color, shown on the little preview dot */
+  finish?: Finish | null
 }
 
-export default function ColorEditor({ value, onChange, images, hint }: Props) {
+export default function ColorEditor({ value, onChange, images, hint, finish }: Props) {
   const [mode, setMode] = useState<'picker' | 'dropper'>(images.length ? 'dropper' : 'picker')
   const [text, setText] = useState(value ?? '')
   useEffect(() => setText(value ?? ''), [value])
@@ -32,7 +36,7 @@ export default function ColorEditor({ value, onChange, images, hint }: Props) {
       {mode === 'picker' && <HexColorPicker color={value ?? '#c0566a'} onChange={hex => onChange(hex, false)} />}
 
       <div className="hex-row">
-        <span className="dot" style={{ background: value ?? 'var(--empty-swatch)' }} />
+        <span className="dot" style={{ background: value ?? 'var(--empty-swatch)' }}>{value && <FinishLayer finish={finish} />}</span>
         <input className="input" value={text} placeholder="#c0566a" maxLength={7} inputMode="text"
           onChange={e => {
             let v = e.target.value.trim()

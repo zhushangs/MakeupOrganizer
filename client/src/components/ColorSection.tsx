@@ -1,3 +1,5 @@
+import FinishLayer from './FinishLayer'
+import { FINISHES, FINISH_LABELS, finishOf } from '../finish'
 import { useState } from 'react'
 import { dominantColor, isDark } from '../color'
 import type { Swatch } from '../types'
@@ -63,6 +65,7 @@ export default function ColorSection({ value, imagePath, showLayout, onChange }:
               <button type="button" className={'edit-cell' + (i === cur ? ' sel' : '')}
                 style={{ background: s.hex ?? undefined, color: isDark(s.hex) ? '#fff' : '#2a2321' }}
                 onClick={() => setSel(i)}>
+                {s.hex && <FinishLayer finish={s.finish} />}
                 <span className="i">{i + 1}</span>
               </button>
             )
@@ -78,6 +81,7 @@ export default function ColorSection({ value, imagePath, showLayout, onChange }:
 
       <ColorEditor
         value={value.swatches[cur]?.hex}
+        finish={value.swatches[cur]?.finish}
         images={images}
         hint={multi ? `Tap ${unit.toLowerCase()} ${cur + 1} on the picture (left → right, top → bottom, same as above). It moves to the next one automatically.` : 'Press and drag on the image, release to pick'}
         onChange={(hex, fromImage) => {
@@ -85,6 +89,16 @@ export default function ColorSection({ value, imagePath, showLayout, onChange }:
           if (fromImage && multi) setSel(Math.min(cur + 1, cells - 1))
         }}
       />
+      <div className="field">
+        <label>{multi ? `${unit} ${cur + 1} finish` : 'Finish'}</label>
+        <div className="seg finish-seg">
+          {FINISHES.map(f => (
+            <button key={f} type="button" className={finishOf(value.swatches[cur]?.finish) === f ? 'on' : ''}
+              onClick={() => patchCell(cur, { finish: f === 'matte' ? null : f })}>{FINISH_LABELS[f]}</button>
+          ))}
+        </div>
+      </div>
+
       {!multi && imagePath && (
         <button type="button" className="link-btn" style={{ alignSelf: 'flex-start' }}
           onClick={async () => { const c = await dominantColor(imagePath).catch(() => null); if (c) patchCell(0, { hex: c }) }}>

@@ -1,3 +1,4 @@
+import FinishLayer from '../components/FinishLayer'
 import { useEffect, useMemo, useRef, useState, type TouchEvent } from 'react'
 import { categoryOf, getCategories, type Product } from '../types'
 import { hueSortKey } from '../color'
@@ -216,6 +217,7 @@ export default function ListPage({ items, error, category, openItem, onChanged }
                 {/* Home shows the color card: one block of color, or the palette in its real layout */}
                 <div className={'ic-img' + (multi ? ' pal' : '')}
                   style={!multi && hex ? { background: hex } : undefined}>
+                  {!multi && hex && <FinishLayer finish={p.swatches[0]?.finish} />}
                   {multi
                     ? <div className="ic-pal"><PaletteGrid p={p} /></div>
                     : !hex && (p.imagePath
@@ -275,7 +277,7 @@ function RowSwatch({ p }: { p: Product }) {
   const photo = !multi && !hex && p.imagePath
   return (
     <span className={'lr-sw' + (multi ? ' pal' : '') + (photo ? ' photo' : '')} style={!multi && hex ? { background: hex } : undefined}>
-      {multi ? <PaletteGrid p={p} /> : photo ? <img src={p.imagePath!} alt="" loading="lazy" /> : null}
+      {multi ? <PaletteGrid p={p} /> : photo ? <img src={p.imagePath!} alt="" loading="lazy" /> : hex ? <FinishLayer finish={p.swatches[0]?.finish} /> : null}
     </span>
   )
 }
