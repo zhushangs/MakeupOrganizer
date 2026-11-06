@@ -37,21 +37,53 @@ function tile(key: string, size: number, draw: (ctx: CanvasRenderingContext2D, r
   return c
 }
 
-/** White specks on transparent: fine (shimmer) or big (glitter) */
-const specks = (big: boolean) => tile(big ? 'specks-big' : 'specks-fine', 256, (ctx, rand) => {
-  const n = big ? 70 : 520
-  for (let i = 0; i < n; i++) {
-    const r = big ? 0.9 + rand() * 1.6 : 0.35 + rand() * 0.55
-    ctx.fillStyle = big && rand() < 0.3 ? 'rgba(255,240,210,1)' : `rgba(255,255,255,${0.55 + rand() * 0.45})`
+/**
+ * Texture tiles, shared by the canvas painter and the on-screen CSS (installFinishTextures), so both
+ * look the same in every browser. Each tile is drawn TILE_CSS[name] "CSS px" wide on a ~170px swatch.
+ */
+const TILE_CSS = { shimmer: 128, glitter: 128, grain: 128 }
+
+/** Shimmer: lots of fine white dust */
+const shimmerTile = () => tile('shimmer', 512, (ctx, rand) => {
+  for (let i = 0; i < 2300; i++) {
+    const r = 1.2 + rand() * 1.8
+    ctx.fillStyle = `rgba(255,255,255,${0.45 + rand() * 0.55})`
     ctx.beginPath()
-    ctx.ellipse(rand() * 256, rand() * 256, r, r * (0.6 + rand() * 0.6), rand() * Math.PI, 0, Math.PI * 2)
+    ctx.arc(rand() * 512, rand() * 512, r, 0, Math.PI * 2)
     ctx.fill()
   }
 })
 
+/** Glitter: fewer, much bigger flakes in a few tints, some with a little star glint */
+const glitterTile = () => tile('glitter', 512, (ctx, rand) => {
+  const tints = ['255,255,255', '255,244,214', '255,226,236', '224,238,255']
+  for (let i = 0; i < 150; i++) {
+    const x = rand() * 512, y = rand() * 512
+    const r = 4.5 + rand() * 6
+    ctx.fillStyle = `rgba(${tints[Math.floor(rand() * tints.length)]},${0.75 + rand() * 0.25})`
+    ctx.beginPath()
+    // hexagon-ish flake
+    const rot = rand() * Math.PI
+    for (let k = 0; k < 6; k++) {
+      const a = rot + (k * Math.PI) / 3
+      ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r * (0.7 + rand() * 0.3))
+    }
+    ctx.closePath()
+    ctx.fill()
+    if (rand() < 0.12) {
+      ctx.strokeStyle = 'rgba(255,255,255,.9)'
+      ctx.lineWidth = 1.6
+      ctx.beginPath()
+      ctx.moveTo(x - r * 1.9, y); ctx.lineTo(x + r * 1.9, y)
+      ctx.moveTo(x, y - r * 1.9); ctx.lineTo(x, y + r * 1.9)
+      ctx.stroke()
+    }
+  }
+})
+
 /** Gray grain around 50% (for overlay blending: lighter and darker flecks, the hue stays) */
-const grain = () => tile('grain', 128, (ctx, rand) => {
-  const img = ctx.createImageData(128, 128)
+const grain = () => tile('grain', 256, (ctx, rand) => {
+  const img = ctx.createImageData(256, 256)
   for (let i = 0; i < img.data.length; i += 4) {
     const v = Math.max(0, Math.min(255, 128 + (rand() + rand() - 1) * 230))
     img.data[i] = img.data[i + 1] = img.data[i + 2] = v
@@ -59,6 +91,16 @@ const grain = () => tile('grain', 128, (ctx, rand) => {
   }
   ctx.putImageData(img, 0, 0)
 })
+
+/** Put the tiles into CSS variables (--tex-shimmer, --tex-glitter, --tex-grain) used by .fin-* */
+export function installFinishTextures() {
+  try {
+    const root = document.documentElement.style
+    root.setProperty('--tex-shimmer', `url(${shimmerTile().toDataURL()})`)
+    root.setProperty('--tex-glitter', `url(${glitterTile().toDataURL()})`)
+    root.setProperty('--tex-grain', `url(${grain().toDataURL()})`)
+  } catch { /* no canvas: swatches just show without texture */ }
+}
 
 /** Soft horizontal streaks (satin, like a swatch of lipstick drawn across) */
 const streaks = () => tile('streaks', 128, (ctx, rand) => {
@@ -124,16 +166,15 @@ export function paintFinish(ctx: CanvasRenderingContext2D, finish: Finish | null
     ctx.filter = 'none'
   } else if (f === 'shimmer') {
     ctx.globalCompositeOperation = 'screen'
-    fillTile(ctx, specks(false), x, y, w, h, u * 0.45)
-    fillTile(ctx, specks(false), x + 37 * u, y + 53 * u, w, h, u * 0.4)
+    fillTile(ctx, shimmerTile(), x, y, w, h, (u * TILE_CSS.shimmer) / 512)
   } else if (f === 'metallic') {
     ctx.globalCompositeOperation = 'overlay'
     ctx.globalAlpha = 0.5
     ctx.imageSmoothingEnabled = true
-    fillTile(ctx, grain(), x, y, w, h, u * 0.9)
+    fillTile(ctx, grain(), x, y, w, h, (u * TILE_CSS.grain) / 256)
     ctx.globalCompositeOperation = 'screen'
-    ctx.globalAlpha = 0.6
-    fillTile(ctx, specks(false), x, y, w, h, u * 0.5)
+    ctx.globalAlpha = 0.5
+    fillTile(ctx, shimmerTile(), x, y, w, h, (u * TILE_CSS.shimmer) / 512)
     // a faint glow and darker edges, like a swatch on skin
     ctx.globalAlpha = 1
     ctx.globalCompositeOperation = 'source-over'
@@ -145,10 +186,8 @@ export function paintFinish(ctx: CanvasRenderingContext2D, finish: Finish | null
     ctx.fillStyle = g
     ctx.fillRect(x, y, w, h)
   } else if (f === 'glitter') {
-    ctx.globalCompositeOperation = 'screen'
-    fillTile(ctx, specks(true), x, y, w, h, u * 0.62)
-    ctx.globalAlpha = 0.6
-    fillTile(ctx, specks(false), x, y, w, h, u * 0.55)
+    ctx.globalCompositeOperation = 'source-over'
+    fillTile(ctx, glitterTile(), x, y, w, h, (u * TILE_CSS.glitter) / 512)
   }
   ctx.restore()
 }
