@@ -57,16 +57,17 @@ export default function ColorSection({ value, imagePath, showLayout, onChange }:
         // palettes, and older non-palette items with a custom palette shape
         : (showLayout || multi) && <PaletteLayout value={value} onChange={setShape} />}
 
-      {multi && (
-        <PanGrid shape={value} className="edit-grid" style={split ? { aspectRatio: '1', maxWidth: 220 } : undefined}>
+      {/* the color card being edited (a single color too, so its finish can be seen) */}
+      {(
+        <PanGrid shape={value} className="edit-grid" style={split || !multi ? { aspectRatio: '1', maxWidth: 220 } : undefined}>
           {i => {
             const s = value.swatches[i] ?? {}
             return (
-              <button type="button" className={'edit-cell' + (i === cur ? ' sel' : '')}
+              <button type="button" className={'edit-cell' + (multi && i === cur ? ' sel' : '')}
                 style={{ background: s.hex ?? undefined, color: isDark(s.hex) ? '#fff' : '#2a2321' }}
                 onClick={() => setSel(i)}>
                 {s.hex && <FinishLayer finish={s.finish} />}
-                <span className="i">{i + 1}</span>
+                {multi && <span className="i">{i + 1}</span>}
               </button>
             )
           }}
