@@ -1,13 +1,14 @@
 /**
- * Finishes (texture) of a color: matte, satin, shimmer, metallic, glitter.
+ * Finishes (texture) of a color: matte, sheen, satin, shimmer, metallic, glitter.
+ * Sheen is a powder with a soft pearly glow (between matte and shimmer); satin is a creamy, lipstick-like gloss.
  * On screen they're CSS overlays (.fin-* in styles.css, via <FinishLayer>); on the saved PNG cards
  * and charts they're painted on the canvas by paintFinish(), made to look the same.
  */
-export const FINISHES = ['matte', 'satin', 'shimmer', 'metallic', 'glitter'] as const
+export const FINISHES = ['matte', 'sheen', 'satin', 'shimmer', 'metallic', 'glitter'] as const
 export type Finish = (typeof FINISHES)[number]
 
 export const FINISH_LABELS: Record<Finish, string> = {
-  matte: 'Matte', satin: 'Satin', shimmer: 'Shimmer', metallic: 'Metallic', glitter: 'Glitter',
+  matte: 'Matte', sheen: 'Sheen', satin: 'Satin', shimmer: 'Shimmer', metallic: 'Metallic', glitter: 'Glitter',
 }
 
 /** Missing / unknown values are matte (everything saved before finishes existed) */
@@ -41,7 +42,7 @@ function tile(key: string, size: number, draw: (ctx: CanvasRenderingContext2D, r
  * Texture tiles, shared by the canvas painter and the on-screen CSS (installFinishTextures), so both
  * look the same in every browser. Each tile is drawn TILE_CSS[name] "CSS px" wide on a ~170px swatch.
  */
-const TILE_CSS = { shimmer: 128, glitter: 150, grain: 128 }
+const TILE_CSS = { shimmer: 128, glitter: 150, grain: 128, sheen: 96 }
 
 /** Shimmer: lots of fine white dust */
 const shimmerTile = () => tile('shimmer', 512, (ctx, rand) => {
@@ -155,6 +156,18 @@ const grain = () => tile('grain', 256, (ctx, rand) => {
   ctx.putImageData(img, 0, 0)
 })
 
+/** Sheen: very fine, low-contrast grain (a pressed powder with micro-pearl; no visible sparkle) */
+const sheenTile = () => tile('sheen', 256, (ctx, rand) => {
+  const img = ctx.createImageData(256, 256)
+  for (let i = 0; i < img.data.length; i += 4) {
+    // mostly mid-gray with a few slightly brighter specks of pearl
+    const v = 128 + (rand() + rand() - 1) * 70 + (rand() < 0.04 ? 60 : 0)
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = Math.max(0, Math.min(255, v))
+    img.data[i + 3] = 255
+  }
+  ctx.putImageData(img, 0, 0)
+})
+
 /** Put the tiles into CSS variables (--tex-shimmer, --tex-glitter-tone / -spark, --tex-grain) used by .fin-* */
 export function installFinishTextures() {
   try {
@@ -163,6 +176,7 @@ export function installFinishTextures() {
     root.setProperty('--tex-glitter-tone', `url(${glitterTone().toDataURL()})`)
     root.setProperty('--tex-glitter-spark', `url(${glitterSpark().toDataURL()})`)
     root.setProperty('--tex-grain', `url(${grain().toDataURL()})`)
+    root.setProperty('--tex-sheen', `url(${sheenTile().toDataURL()})`)
   } catch { /* no canvas: swatches just show without texture */ }
 }
 
@@ -228,6 +242,20 @@ export function paintFinish(ctx: CanvasRenderingContext2D, finish: Finish | null
     ctx.fillRect(-w, 0, 3 * w, 1.2 * w)
     ctx.restore()
     ctx.filter = 'none'
+  } else if (f === 'sheen') {
+    ctx.globalCompositeOperation = 'overlay'
+    ctx.globalAlpha = 0.55
+    fillTile(ctx, sheenTile(), x, y, w, h, (u * TILE_CSS.sheen) / 256)
+    // a soft pearly glow, lighter towards one corner
+    ctx.globalAlpha = 1
+    ctx.globalCompositeOperation = 'soft-light'
+    const r = Math.max(w, h)
+    const g = ctx.createRadialGradient(x + w * 0.3, y + h * 0.25, 0, x + w * 0.3, y + h * 0.25, r * 1.1)
+    g.addColorStop(0, 'rgba(255,255,255,.2)')
+    g.addColorStop(0.55, 'rgba(255,255,255,.07)')
+    g.addColorStop(1, 'rgba(0,0,0,.1)')
+    ctx.fillStyle = g
+    ctx.fillRect(x, y, w, h)
   } else if (f === 'shimmer') {
     ctx.globalCompositeOperation = 'screen'
     fillTile(ctx, shimmerTile(), x, y, w, h, (u * TILE_CSS.shimmer) / 512)

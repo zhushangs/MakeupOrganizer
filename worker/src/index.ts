@@ -85,7 +85,7 @@ const error = (message: string, status = 400) => json({ error: message }, status
 /** Most rows / columns a palette grid can have (e.g. a 1 × 12 palette) */
 const MAX_GRID = 12
 /** Color finishes the app knows; matte is stored as null */
-const FINISHES = ['matte', 'satin', 'shimmer', 'metallic', 'glitter']
+const FINISHES = ['matte', 'sheen', 'satin', 'shimmer', 'metallic', 'glitter']
 const clamp = (n: unknown, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.trunc(Number(n) || lo)))
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
 const optStr = (v: unknown) => str(v) || null

@@ -450,6 +450,8 @@ img { display: block; max-width: 100%; }
   -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.35), #000 25%, #000 65%, rgba(0,0,0,.25));
           mask-image: linear-gradient(90deg, rgba(0,0,0,.35), #000 25%, #000 65%, rgba(0,0,0,.25));
   filter: blur(1.2px); }
+.fin-sheen::before { background: var(--tex-sheen); background-size: 96px; mix-blend-mode: overlay; opacity: .55; }
+.fin-sheen::after { background: radial-gradient(circle at 30% 25%, rgba(255,255,255,.2), rgba(255,255,255,.07) 55%, rgba(0,0,0,.1) 110%); mix-blend-mode: soft-light; }
 .fin-shimmer::after { background: var(--tex-shimmer); background-size: 128px; mix-blend-mode: screen; }
 .fin-metallic::before { background: var(--tex-grain); background-size: 128px; mix-blend-mode: overlay; opacity: .5; }
 .fin-metallic::after { background: var(--tex-shimmer), radial-gradient(ellipse 80% 70% at 45% 35%, rgba(255,255,255,.06), transparent 60%, rgba(0,0,0,.16)); background-size: 128px, 100% 100%; mix-blend-mode: screen; opacity: .5; box-shadow: inset 0 0 18px rgba(0,0,0,.18); }

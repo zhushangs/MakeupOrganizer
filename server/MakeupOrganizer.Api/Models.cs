@@ -6,7 +6,7 @@ public class Swatch
     public string? Hex { get; set; }
     /// <summary>Optional name for this pan (e.g. an eyeshadow shade name)</summary>
     public string? Label { get; set; }
-    /// <summary>Texture: satin, shimmer, metallic or glitter; null = matte</summary>
+    /// <summary>Texture: sheen, satin, shimmer, metallic or glitter; null = matte</summary>
     public string? Finish { get; set; }
 }
 
