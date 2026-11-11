@@ -8,6 +8,7 @@ import PaletteLayout from '../components/PaletteLayout'
 import { findDuplicate } from '../dup'
 import { categoryOf, getCategories, newCategoryKey, type AppSettings, type Product, type ProductInput } from '../types'
 import { go } from '../App'
+import { BATCH_LOOKUP_URL, PAO_CHOICES, todayIso } from '../dates'
 
 const CHANNELS = ['Sephora', 'Ulta', 'Nordstrom', "Macy's", "Bloomingdale's", 'Saks Fifth Avenue', 'Neiman Marcus', 'Amazon', 'Target', 'Brand website', 'Counter', 'Duty free', 'Gift']
 
@@ -195,6 +196,37 @@ export default function EditPage({ items, brands, settings, onSaveSettings, exis
               <select className="input" value={f.currency ?? 'USD'} onChange={e => set('currency', e.target.value)}>
                 <option>USD</option><option>CNY</option><option>EUR</option><option>JPY</option><option>KRW</option><option>GBP</option><option>CAD</option>
               </select></div>
+          </div>
+        </div>
+
+        <div className="card">
+          <h3>Usage<span className="opt">optional</span></h3>
+          <div className="row">
+            <div className="field"><label>Opened on</label>
+              <input className="input" type="date" value={f.openedOn ?? ''} max={todayIso()}
+                onChange={e => set('openedOn', e.target.value || null)} /></div>
+            {!f.openedOn && <button type="button" className="btn small today-btn" onClick={() => set('openedOn', todayIso())}>Today</button>}
+          </div>
+          <div className="field"><label>Good for after opening<span className="hint"> · the open-jar symbol, e.g. 12M</span></label>
+            <select className="input" value={f.paoMonths ?? ''} onChange={e => set('paoMonths', e.target.value ? +e.target.value : null)}>
+              <option value="">—</option>
+              {PAO_CHOICES.map(m => <option key={m} value={m}>{m} months ({m}M)</option>)}
+            </select></div>
+          <div className="row">
+            <div className="field"><label>Batch code</label>
+              <input className="input" value={f.batchCode ?? ''} onChange={e => set('batchCode', e.target.value)}
+                placeholder="e.g. A12" autoCapitalize="characters" autoCorrect="off" spellCheck={false} /></div>
+            <div className="field"><label>Made in<span className="hint"> · month</span></label>
+              <input className="input" type="month" value={f.manufacturedOn ?? ''} max={todayIso().slice(0, 7)} placeholder="YYYY-MM"
+                onChange={e => set('manufacturedOn', e.target.value || null)} /></div>
+          </div>
+          <div className="hint">
+            Batch codes work differently for every brand.{' '}
+            <a href={BATCH_LOOKUP_URL} target="_blank" rel="noreferrer"
+              onClick={() => { if (f.batchCode?.trim()) navigator.clipboard?.writeText(f.batchCode.trim()).catch(() => {}) }}>
+              Look it up on CheckFresh
+            </a>
+            {f.batchCode?.trim() ? ' (the code is copied for you)' : ''}, then fill in the month it was made.
           </div>
         </div>
 

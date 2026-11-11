@@ -460,3 +460,11 @@ img { display: block; max-width: 100%; }
 .pcell, .sc-color, .sc-pan, .hex-row .dot, .dup-swatch { position: relative; overflow: hidden; }
 .finish-seg { display: flex; flex-wrap: wrap; }
 .finish-seg button { flex: 1; padding: 6px 4px; font-size: 13px; }
+
+/* usage: opened / use-by / made */
+.kv .sub-val { color: var(--ink-3); }
+.kv .mono { font-family: ui-monospace, Menlo, monospace; }
+.use-by.soon { color: var(--warn-ink); }
+.use-by.past { color: var(--danger); font-weight: 600; }
+.today-btn { align-self: flex-end; margin-bottom: 1px; height: 42px; }
+.field label .hint { font-size: 12px; }

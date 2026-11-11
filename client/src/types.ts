@@ -28,6 +28,14 @@ export interface Product {
   /** marked with a heart: something you like / find works well */
   favorite?: boolean
   notes?: string | null
+  /** when it was opened, "YYYY-MM-DD" */
+  openedOn?: string | null
+  /** good for this many months after opening (the open-jar "12M" symbol) */
+  paoMonths?: number | null
+  /** batch / lot code printed on the product */
+  batchCode?: string | null
+  /** manufacture month, "YYYY-MM" (looked up from the batch code) */
+  manufacturedOn?: string | null
   createdAt: string
   updatedAt: string
 }

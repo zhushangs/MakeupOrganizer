@@ -1,3 +1,4 @@
+import { UNOPENED_SHELF_MONTHS, agoText, formatDate, tooOldUnopened, useBy } from '../dates'
 import { useEffect, useRef, useState, type TouchEvent } from 'react'
 import { api } from '../api'
 import { renderProductCard } from '../cards'
@@ -54,6 +55,7 @@ export default function DetailSheet({ p, onClose, onDeleted, onChanged, nav }: {
   const paid = formatPrice(p.paidPrice, p.currency)
   const saved = p.originalPrice && p.paidPrice != null && p.paidPrice < p.originalPrice
     ? Math.round((1 - p.paidPrice / p.originalPrice) * 100) : null
+  const use = useBy(p.openedOn, p.paoMonths)
 
   // Swipe left/right to the next/previous item in the list (the sheet itself stays open)
   const paneRef = useRef<HTMLDivElement>(null)
@@ -124,11 +126,19 @@ export default function DetailSheet({ p, onClose, onDeleted, onChanged, nav }: {
       {p.imagePath && !p.noColor && <img className="d-photo" src={p.imagePath} alt="" />}
       <SwatchCard p={p} />
 
-      {(p.channel || orig || paid || p.notes) && (
+      {(p.channel || orig || paid || p.notes || p.openedOn || p.batchCode || p.manufacturedOn || p.paoMonths) && (
         <dl className="kv">
           {p.channel && <><dt>Bought at</dt><dd>{p.channel}</dd></>}
           {orig && <><dt>Original</dt><dd>{orig}</dd></>}
           {paid && <><dt>Paid</dt><dd>{paid}{saved ? <span className="saved"> {saved}% off</span> : null}</dd></>}
+          {p.openedOn && <><dt>Opened</dt><dd>{formatDate(p.openedOn)} <span className="sub-val">· {agoText(p.openedOn)}</span></dd></>}
+          {p.paoMonths && !p.openedOn && <><dt>After opening</dt><dd>Good for {p.paoMonths} months</dd></>}
+          {use && <><dt>Use by</dt><dd className={'use-by ' + use.level}>{use.text}</dd></>}
+          {p.manufacturedOn && (
+            <><dt>Made</dt><dd>{formatDate(p.manufacturedOn)} <span className="sub-val">· {agoText(p.manufacturedOn)}</span>
+              {tooOldUnopened(p.manufacturedOn, p.openedOn) && <span className="use-by soon"> · over {UNOPENED_SHELF_MONTHS / 12} years, check it before use</span>}</dd></>
+          )}
+          {p.batchCode && <><dt>Batch</dt><dd className="mono">{p.batchCode}</dd></>}
           {p.notes && <><dt>Notes</dt><dd className="notes">{p.notes}</dd></>}
         </dl>
       )}

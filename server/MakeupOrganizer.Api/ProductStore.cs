@@ -119,6 +119,10 @@ public class ProductStore
         p.Channel = OptStr(p.Channel);
         p.Currency = OptStr(p.Currency);
         p.Notes = OptStr(p.Notes);
+        if (p.OpenedOn is not null && !System.Text.RegularExpressions.Regex.IsMatch(p.OpenedOn, @"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$")) p.OpenedOn = null;
+        if (p.PaoMonths is < 1 or > 120) p.PaoMonths = null;
+        p.BatchCode = OptStr(p.BatchCode) is { } code ? code[..Math.Min(code.Length, 40)] : null;
+        if (p.ManufacturedOn is not null && !System.Text.RegularExpressions.Regex.IsMatch(p.ManufacturedOn, @"^\d{4}-(0[1-9]|1[0-2])$")) p.ManufacturedOn = null;
         // only our own stored pictures; anything else could point TryDelete at the wrong file
         if (p.ImagePath is not null && !ImagePathRe.IsMatch(p.ImagePath)) p.ImagePath = null;
     }

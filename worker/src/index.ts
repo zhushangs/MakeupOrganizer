@@ -50,6 +50,13 @@ interface Product {
   /** marked with a heart: something the user likes / finds works well */
   favorite?: boolean
   notes?: string | null
+  /** opened on "YYYY-MM-DD" */
+  openedOn?: string | null
+  /** good for this many months after opening */
+  paoMonths?: number | null
+  batchCode?: string | null
+  /** manufacture month "YYYY-MM" */
+  manufacturedOn?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -192,6 +199,10 @@ function normalizeProduct(input: any, id: string, createdAt: string): Product {
     noColor: !!input?.noColor,
     favorite: !!input?.favorite,
     notes: optStr(input?.notes),
+    openedOn: /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(input?.openedOn) ? input.openedOn : null,
+    paoMonths: Number.isInteger(input?.paoMonths) && input.paoMonths > 0 && input.paoMonths <= 120 ? input.paoMonths : null,
+    batchCode: optStr(input?.batchCode)?.slice(0, 40) ?? null,
+    manufacturedOn: /^\d{4}-(0[1-9]|1[0-2])$/.test(input?.manufacturedOn) ? input.manufacturedOn : null,
     createdAt,
     updatedAt: new Date().toISOString(),
   }

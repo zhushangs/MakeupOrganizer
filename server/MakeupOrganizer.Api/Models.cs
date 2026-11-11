@@ -48,6 +48,14 @@ public class Product
 
     /// <summary>Free-form notes / how it wears</summary>
     public string? Notes { get; set; }
+    /// <summary>Opened on, "yyyy-MM-dd"</summary>
+    public string? OpenedOn { get; set; }
+    /// <summary>Good for this many months after opening (the open-jar "12M" symbol)</summary>
+    public int? PaoMonths { get; set; }
+    /// <summary>Batch / lot code printed on the product</summary>
+    public string? BatchCode { get; set; }
+    /// <summary>Manufacture month, "yyyy-MM"</summary>
+    public string? ManufacturedOn { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }
