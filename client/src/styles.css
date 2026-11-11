@@ -466,5 +466,13 @@ img { display: block; max-width: 100%; }
 .kv .mono { font-family: ui-monospace, Menlo, monospace; }
 .use-by.soon { color: var(--warn-ink); }
 .use-by.past { color: var(--danger); font-weight: 600; }
-.today-btn { align-self: flex-end; margin-bottom: 1px; height: 42px; }
+.row > .field { min-width: 0; }
+.row > .today-btn { flex: none; align-self: flex-end; height: 44px; padding: 0 16px; }
+/* iOS Safari gives date/month inputs a fixed intrinsic width (they spill out of the row) and
+   collapses them when empty; make them behave like the other inputs */
+input.input[type=date], input.input[type=month] {
+  -webkit-appearance: none; appearance: none; display: block; width: 100%; min-width: 0; min-height: 44px; text-align: left;
+}
+input.input[type=date]::-webkit-date-and-time-value, input.input[type=month]::-webkit-date-and-time-value { text-align: left; }
 .field label .hint { font-size: 12px; }
+.hint a { color: var(--accent); }
