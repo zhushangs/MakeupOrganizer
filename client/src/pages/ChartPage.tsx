@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { renderChart } from '../cards'
 import { hueSortKey } from '../color'
-import { categoryOf, getCategories, type Product } from '../types'
+import { categoriesIn, categoryOf, itemGroup, type Product } from '../types'
 import { go } from '../App'
 
 /** "View all": every item in a category on one color chart image (long-press to save). */
@@ -14,16 +14,17 @@ export default function ChartPage({ items, category, favOnly = false }: { items:
 
   // "All": one section per category (in your category order), each sorted by color
   const sections = useMemo(() => {
-    const list = (items ?? []).filter(p => !favOnly || p.favorite)
+    // charts are for makeup (skincare has no colors)
+    const list = (items ?? []).filter(p => (!favOnly || p.favorite) && itemGroup(p) === 'makeup')
     if (cat.key !== 'all') return [{ items: list.filter(p => p.category === cat.key).sort(byColor) }]
-    return getCategories()
+    return categoriesIn('makeup')
       .map(c => ({ label: c.label, items: list.filter(p => categoryOf(p.category).key === c.key).sort(byColor) }))
       .filter(s => s.items.length)
   }, [items, cat.key, favOnly]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasItems = sections.some(s => s.items.length)
   // switch between every item and only hearted ones (replace: the Back button still goes home)
-  const favCount = (items ?? []).filter(p => p.favorite && (base.key === 'all' || p.category === base.key)).length
+  const favCount = (items ?? []).filter(p => p.favorite && (base.key === 'all' ? itemGroup(p) === 'makeup' : p.category === base.key)).length
   const showFav = (on: boolean) => location.replace(`#/chart?c=${base.key}${on ? '&fav=1' : ''}`)
   const [srcs, setSrcs] = useState<string[] | null>(null)
   const [error, setError] = useState<string | null>(null)

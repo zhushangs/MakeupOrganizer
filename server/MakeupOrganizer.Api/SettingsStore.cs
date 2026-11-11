@@ -11,6 +11,10 @@ public class CategoryDef
     public bool Multi { get; set; }
     public int DefaultRows { get; set; } = 1;
     public int DefaultCols { get; set; } = 1;
+    /// <summary>"skincare", or null for makeup</summary>
+    public string? Group { get; set; }
+    /// <summary>New items in this category start without a color card</summary>
+    public bool? NoColor { get; set; }
 }
 
 /// <summary>User-editable lists: categories and extra brands (for autocomplete and screenshot import).</summary>
@@ -83,6 +87,8 @@ public class SettingsStore
                 c.DefaultRows = Math.Clamp(c.DefaultRows, 1, 12);
                 c.DefaultCols = Math.Clamp(c.DefaultCols, 1, 12);
                 if (!c.Multi) c.DefaultRows = c.DefaultCols = 1;
+                c.Group = c.Group == "skincare" && c.Key != "other" ? "skincare" : null;
+                if (c.NoColor != true) c.NoColor = null;
                 return c;
             })
             .Where(c => c.Key != "all" && seen.Add(c.Key))

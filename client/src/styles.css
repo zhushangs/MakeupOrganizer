@@ -78,7 +78,10 @@ img { display: block; max-width: 100%; }
 .chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .chip.on .n { color: inherit; opacity: .7; }
 
-.tools { display: flex; gap: 8px; padding-top: 6px; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 6px; }
+/* search gets its own row; heart, bomb, sort and view share the next */
+.tools .search { flex: 1 1 100%; }
+.tools .select { flex: 1; min-width: 0; }
 .search {
   flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--surface);
   border-radius: 10px; padding: 8px 12px; font-size: 15px;
@@ -476,3 +479,69 @@ input.input[type=date], input.input[type=month] {
 input.input[type=date]::-webkit-date-and-time-value, input.input[type=month]::-webkit-date-and-time-value { text-align: left; }
 .field label .hint { font-size: 12px; }
 .hint a { color: var(--accent); }
+
+/* ---------- makeup / skincare ---------- */
+.group-seg { display: flex; margin: 10px 0 0; }
+.group-seg button { flex: 1; }
+:root { --bomb: #5b4d48; }
+@media (prefers-color-scheme: dark) { :root { --bomb: #d8ccc6; } }
+.fav-filter.bomb.on { color: var(--bomb); border-color: color-mix(in srgb, var(--bomb) 45%, var(--line)); background: color-mix(in srgb, var(--bomb) 12%, var(--surface)); }
+.ic-bomb { color: #5b4d48; }
+.item-card .ic-fav + .ic-bomb { right: 40px; }
+.bomb-mark { color: var(--bomb); margin-right: 4px; display: inline-flex; vertical-align: -1px; }
+/* 踩雷 items fade back a little */
+.is-bomb .ic-img > :not(.ic-fav), .is-bomb .ic-text, .is-bomb .lr-sw, .is-bomb .lr-text, .is-bomb .sr-pic img, .is-bomb .sr-info { opacity: .55; }
+.qty { display: inline-block; font-size: 11.5px; font-weight: 650; color: var(--ink-2); background: var(--surface-2); border-radius: 6px; padding: 1px 6px; margin-left: 6px; vertical-align: 1px; }
+.other-hint { display: block; margin: 4px auto 12px; border: 1px dashed var(--line); background: none; color: var(--accent); border-radius: 10px; padding: 8px 14px; font-size: 14px; }
+
+/* skincare rows */
+.skin-rows { display: flex; flex-direction: column; gap: 8px; margin: 12px 16px; }
+.skin-row {
+  display: flex; align-items: center; gap: 12px; border: 0; text-align: left; width: 100%; color: inherit; font: inherit;
+  background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 9px 14px 9px 9px;
+}
+.skin-row:active { background: var(--surface-2); }
+.sr-pic { position: relative; width: 56px; height: 56px; flex: none; border-radius: 10px; border: 1px solid var(--line); background: #fff; display: grid; place-items: center; }
+.sr-pic img { width: 100%; height: 100%; object-fit: contain; border-radius: 10px; }
+.sr-nopic { font-size: 22px; opacity: .5; }
+.sr-mark { position: absolute; right: -6px; top: -6px; width: 22px; height: 22px; border-radius: 50%; background: #fff; color: #5b4d48; display: grid; place-items: center; box-shadow: 0 1px 3px rgba(0, 0, 0, .2); }
+.sr-mark.fav { color: #e0405e; }
+.sr-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sr-name { font-size: 15px; font-weight: 650; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr-bar { display: block; height: 4px; border-radius: 2px; background: var(--surface-2); margin-top: 7px; overflow: hidden; }
+.sr-bar i { display: block; height: 100%; border-radius: 2px; }
+:root { --life-ok: #5f8a5a; --life-soon: #b7791f; --life-past: #b3261e; }
+@media (prefers-color-scheme: dark) { :root { --life-ok: #8fbf88; --life-soon: #e2a84a; --life-past: #ff8a80; } }
+.sr-bar .ok { background: var(--life-ok); } .sr-bar .soon { background: var(--life-soon); } .sr-bar .past { background: var(--life-past); }
+.sr-status { flex: none; font-size: 13px; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; color: var(--ink-3); }
+.sr-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.sr-status.ok { color: var(--life-ok); } .sr-status.ok .dot { background: var(--life-ok); }
+.sr-status.soon { color: var(--life-soon); } .sr-status.soon .dot { background: var(--life-soon); }
+.sr-status.past { color: var(--life-past); } .sr-status.past .dot { background: var(--life-past); }
+.sr-status.none { font-weight: 500; }
+.skin-row.used-up .sr-info, .skin-row.used-up .sr-pic { opacity: .5; }
+.d-bomb { right: 48px; }
+.d-bomb.on { color: var(--bomb); background: color-mix(in srgb, var(--bomb) 14%, var(--surface)); }
+.usage-actions { margin-bottom: 10px; }
+.last-one { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 10px; align-items: center; text-align: center; font-size: 14px; }
+.last-one .row { width: 100%; }
+.group-seg.in-form { margin: 0 0 4px; }
+.qty-field .stepper { align-self: flex-start; }
+.qty-field .stepper span { min-width: 64px; }
+/* "% off" chips under the prices; the small line is the Chinese way of saying it (8折 = 20% off) */
+.discounts { display: flex; gap: 5px; align-items: stretch; }
+.d-label { font-size: 13px; color: var(--ink-2); align-self: center; margin-right: 2px; }
+.disc {
+  flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 4px 0 6px;
+  display: flex; flex-direction: column; align-items: center; font-size: 14px; font-weight: 600; color: var(--ink);
+}
+.disc small { font-size: 10.5px; font-weight: 500; color: var(--ink-3); line-height: 1.3; }
+.disc.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.disc.on small { color: color-mix(in srgb, var(--bg) 70%, transparent); }
+.disc.custom { flex: 1.1; }
+.disc.custom span { display: inline-flex; align-items: baseline; }
+.disc.custom input { width: 30px; border: 0; background: none; font: inherit; color: inherit; text-align: right; padding: 0; outline: none; }
+.disc.custom input::placeholder { color: var(--ink-3); }
+.group-seg .n { font-weight: 400; color: var(--ink-3); font-size: 12px; margin-left: 2px; }
+.empty-cats { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; color: var(--ink-3); font-size: 14px; padding: 6px 0; }
+.cat-opts { flex-wrap: wrap; }

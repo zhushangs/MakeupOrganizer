@@ -27,7 +27,11 @@ export interface Product {
   noColor?: boolean
   /** marked with a heart: something you like / find works well */
   favorite?: boolean
+  /** "not for me" (踩雷); never together with favorite */
+  bomb?: boolean
   notes?: string | null
+  /** how many you have (backups included); null/1 = one; 0 = used up, kept for the record */
+  quantity?: number | null
   /** when it was opened, "YYYY-MM-DD" */
   openedOn?: string | null
   /** good for this many months after opening (the open-jar "12M" symbol) */
@@ -71,7 +75,22 @@ export interface Category {
   multi: boolean
   defaultRows: number
   defaultCols: number
+  /** makeup (default) or skincare: the two halves of the home page */
+  group?: Group
+  /** new items in this category start without a color card (most skincare) */
+  noColor?: boolean
 }
+
+export type Group = 'makeup' | 'skincare'
+export const GROUPS: { key: Group; label: string }[] = [{ key: 'makeup', label: 'Makeup' }, { key: 'skincare', label: 'Skincare' }]
+export const groupOf = (c: Category | undefined): Group => (c?.group === 'skincare' ? 'skincare' : 'makeup')
+/** categories of one group, in the user's order */
+export const categoriesIn = (g: Group) => getCategories().filter(c => groupOf(c) === g)
+/** which group an item belongs to (through its category) */
+export const itemGroup = (p: { category: string }) => groupOf(categoryOf(p.category))
+
+/** One tap to set up skincare: the usual categories */
+export const STARTER_SKINCARE = ['Cleanser', 'Toner', 'Serum', 'Moisturizer', 'Eye Cream', 'Mask']
 
 /** Built-in categories; the user can rename, reorder, add and remove them in Settings */
 export const DEFAULT_CATEGORIES: Category[] = [

@@ -6,9 +6,9 @@ import { isMulti, isSplitProduct, reshapeSwatches, type Shape } from '../layout'
 import DuplicateSheet from '../components/DuplicateSheet'
 import PaletteLayout from '../components/PaletteLayout'
 import { findDuplicate } from '../dup'
-import { categoryOf, getCategories, newCategoryKey, type AppSettings, type Product, type ProductInput } from '../types'
+import { GROUPS, categoriesIn, categoryOf, getCategories, groupOf, newCategoryKey, type AppSettings, type Group, type Product, type ProductInput } from '../types'
 import { go } from '../App'
-import { BATCH_LOOKUP_URL, PAO_CHOICES, todayIso } from '../dates'
+import { BATCH_LOOKUP_URL, DISCOUNTS, PAO_CHOICES, todayIso } from '../dates'
 
 const CHANNELS = ['Sephora', 'Ulta', 'Nordstrom', "Macy's", "Bloomingdale's", 'Saks Fifth Avenue', 'Neiman Marcus', 'Amazon', 'Target', 'Brand website', 'Counter', 'Duty free', 'Gift']
 
@@ -19,6 +19,8 @@ function blank(category: string): ProductInput {
     channel: '', originalPrice: null, paidPrice: null, currency: 'USD',
     gridRows: c.defaultRows, gridCols: c.defaultCols,
     swatches: Array.from({ length: c.defaultRows * c.defaultCols }, () => ({})),
+    // most skincare has no color: those categories start without a color card
+    noColor: !!c.noColor,
     notes: '',
   }
 }
@@ -42,6 +44,19 @@ export default function EditPage({ items, brands, settings, onSaveSettings, exis
   // keep the raw text so typing "12." isn't eaten by number parsing
   const [orig, setOrig] = useState(existing?.originalPrice?.toString() ?? '')
   const [paid, setPaid] = useState(existing?.paidPrice?.toString() ?? '')
+  // "20% off" chips: fill in the price paid from the original (or the original from what was paid)
+  const [discount, setDiscount] = useState<number | null>(null)
+  const [customOff, setCustomOff] = useState('')
+  const money = (n: number) => String(Math.round(n * 100) / 100)
+  const applyDiscount = (off: number | null) => {
+    setDiscount(off)
+    if (off == null || off <= 0 || off >= 100) return
+    const o = parsePrice(orig), pd = parsePrice(paid)
+    if (o != null) setPaid(money(o * (1 - off / 100)))
+    else if (pd != null) setOrig(money(pd / (1 - off / 100)))
+  }
+  // which half (makeup / skincare) the category chips show
+  const [catGroup, setCatGroup] = useState<Group>(() => groupOf(categoryOf(f.category)))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -64,7 +79,7 @@ export default function EditPage({ items, brands, settings, onSaveSettings, exis
         // new categories go before "Other", which stays last
         categories: [
           ...getCategories().filter(c => c.key !== 'other'),
-          { key, label, multi, defaultRows: multi ? 2 : 1, defaultCols: multi ? 2 : 1 },
+          { key, label, multi, defaultRows: multi ? 2 : 1, defaultCols: multi ? 2 : 1, group: catGroup, noColor: catGroup === 'skincare' || undefined },
           ...getCategories().filter(c => c.key === 'other'),
         ],
       })
@@ -87,7 +102,9 @@ export default function EditPage({ items, brands, settings, onSaveSettings, exis
         shape = { gridRows: 1, gridCols: 1, layout: null }
         swatches = [swatches.find(s => s.hex) ?? {}]
       }
-      return { ...prev, category: c.key, gridRows: shape.gridRows, gridCols: shape.gridCols, layout: shape.layout ?? null, swatches }
+      // a new item takes the category's color-card default (skincare usually has none)
+      const noColor = existing ? prev.noColor : !!c.noColor
+      return { ...prev, category: c.key, gridRows: shape.gridRows, gridCols: shape.gridCols, layout: shape.layout ?? null, swatches, noColor }
     })
   }
 
@@ -133,8 +150,13 @@ export default function EditPage({ items, brands, settings, onSaveSettings, exis
       <div className="form">
         <div className="card">
           <h3>Category</h3>
+          <div className="seg group-seg in-form">
+            {GROUPS.map(g => (
+              <button key={g.key} type="button" className={g.key === catGroup ? 'on' : ''} onClick={() => setCatGroup(g.key)}>{g.label}</button>
+            ))}
+          </div>
           <div className="chips" style={{ flexWrap: 'wrap', padding: 0 }}>
-            {getCategories().map(c => (
+            {categoriesIn(catGroup).map(c => (
               <button key={c.key} type="button" className={'chip' + (c.key === f.category ? ' on' : '')} onClick={() => setCategory(c.key)}>
                 {c.label}
               </button>
@@ -189,18 +211,40 @@ export default function EditPage({ items, brands, settings, onSaveSettings, exis
             <datalist id="channels">{CHANNELS.map(c => <option key={c} value={c} />)}</datalist></div>
           <div className="row">
             <div className="field"><label>Original price</label>
-              <input className="input" inputMode="decimal" value={orig} placeholder="0.00" onChange={e => setOrig(e.target.value)} /></div>
+              <input className="input" inputMode="decimal" value={orig} placeholder="0.00"
+                onChange={e => { setOrig(e.target.value); setDiscount(null) }} /></div>
             <div className="field"><label>Price paid</label>
-              <input className="input" inputMode="decimal" value={paid} placeholder="0.00" onChange={e => setPaid(e.target.value)} /></div>
+              <input className="input" inputMode="decimal" value={paid} placeholder="0.00"
+                onChange={e => { setPaid(e.target.value); setDiscount(null) }} /></div>
             <div className="field" style={{ flex: '0 0 86px' }}><label>Currency</label>
               <select className="input" value={f.currency ?? 'USD'} onChange={e => set('currency', e.target.value)}>
                 <option>USD</option><option>CNY</option><option>EUR</option><option>JPY</option><option>KRW</option><option>GBP</option><option>CAD</option>
               </select></div>
           </div>
+          <div className="field"><label>Discount<span className="hint"> · fills in the price paid</span></label>
+          <div className="discounts" role="group" aria-label="Discount">
+            {DISCOUNTS.map(d => (
+              <button key={d.off} type="button" className={'disc' + (discount === d.off ? ' on' : '')} onClick={() => { setCustomOff(''); applyDiscount(d.off) }}>
+                <small>{d.zh}</small>{d.off}%
+              </button>
+            ))}
+            <label className={'disc custom' + (discount != null && customOff ? ' on' : '')}>
+              <small>other</small>
+              <span><input inputMode="decimal" value={customOff} placeholder="__" aria-label="Other % off"
+                onChange={e => { setCustomOff(e.target.value); const n = parseFloat(e.target.value); applyDiscount(Number.isFinite(n) ? n : null) }} />%</span>
+            </label>
+          </div>
+          </div>
         </div>
 
         <div className="card">
           <h3>Usage<span className="opt">optional</span></h3>
+          <div className="field qty-field"><label>How many<span className="hint"> · backups included</span></label>
+            <div className="stepper">
+              <button type="button" aria-label="One fewer" disabled={(f.quantity ?? 1) <= 0} onClick={() => set('quantity', Math.max(0, (f.quantity ?? 1) - 1))}>−</button>
+              <span>{(f.quantity ?? 1) === 0 ? 'Used up' : f.quantity ?? 1}</span>
+              <button type="button" aria-label="One more" disabled={(f.quantity ?? 1) >= 99} onClick={() => set('quantity', Math.min(99, (f.quantity ?? 1) + 1))}>+</button>
+            </div></div>
           <div className="row">
             <div className="field"><label>Opened on</label>
               <input className="input" type="date" value={f.openedOn ?? ''} max={todayIso()}

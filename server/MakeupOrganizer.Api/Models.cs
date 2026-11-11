@@ -45,6 +45,10 @@ public class Product
 
     /// <summary>Marked with a heart: something the user likes</summary>
     public bool Favorite { get; set; }
+    /// <summary>踩雷: not for me (never together with Favorite)</summary>
+    public bool Bomb { get; set; }
+    /// <summary>How many (backups included); null = one, 0 = used up</summary>
+    public int? Quantity { get; set; }
 
     /// <summary>Free-form notes / how it wears</summary>
     public string? Notes { get; set; }

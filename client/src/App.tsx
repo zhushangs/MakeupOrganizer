@@ -3,6 +3,7 @@ import { api } from './api'
 import { DEFAULT_CATEGORIES, setCategories, type AppSettings, type Product } from './types'
 import { setExtraBrands } from './receipt'
 import ListPage from './pages/ListPage'
+import type { Group } from './types'
 import EditPage from './pages/EditPage'
 import ImagePage from './pages/ImagePage'
 import ChartPage from './pages/ChartPage'
@@ -11,13 +12,13 @@ import SettingsPage from './pages/SettingsPage'
 
 /** Hash-based routing so the phone's back gesture works */
 type Route =
-  | { name: 'list'; category?: string; open?: string }
+  | { name: 'list'; category?: string; group?: Group; open?: string }
   | { name: 'new'; category?: string }
   | { name: 'edit'; id: string }
   | { name: 'image'; id: string; isNew: boolean }
   | { name: 'chart'; category: string; favOnly: boolean }
   | { name: 'import' }
-  | { name: 'settings' }
+  | { name: 'settings'; group?: Group }
 
 function parseHash(): Route {
   const h = location.hash.replace(/^#\/?/, '')
@@ -28,9 +29,9 @@ function parseHash(): Route {
   if (parts[0] === 'edit' && parts[1]) return { name: 'edit', id: parts[1] }
   if (parts[0] === 'image' && parts[1]) return { name: 'image', id: parts[1], isNew: q.get('new') === '1' }
   if (parts[0] === 'import') return { name: 'import' }
-  if (parts[0] === 'settings') return { name: 'settings' }
+  if (parts[0] === 'settings') return { name: 'settings', group: q.get('g') === 'skincare' ? 'skincare' : undefined }
   if (parts[0] === 'chart') return { name: 'chart', category: q.get('c') ?? 'all', favOnly: q.get('fav') === '1' }
-  return { name: 'list', category: q.get('c') ?? undefined, open: q.get('open') ?? undefined }
+  return { name: 'list', category: q.get('c') ?? undefined, group: q.get('g') === 'skincare' ? 'skincare' : q.get('g') === 'makeup' ? 'makeup' : undefined, open: q.get('open') ?? undefined }
 }
 
 export const go = (hash: string) => { location.hash = hash }
@@ -81,13 +82,16 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash)
   }, [reload])
 
+  // a new item needs your categories (they arrive with the items) to start in the right one
+  if (route.name === 'new' && items === null && !error) return <div className="app"><div className="empty">Loading…</div></div>
+
   switch (route.name) {
     case 'list':
-      return <ListPage items={items} error={error} category={route.category} openItem={route.open} onChanged={reload} />
+      return <ListPage items={items} error={error} category={route.category} group={route.group} openItem={route.open} onChanged={reload} />
     case 'chart':
       return <ChartPage items={items} category={route.category} favOnly={route.favOnly} />
     case 'settings':
-      return <SettingsPage items={items} settings={settings} onSave={saveSettings} />
+      return <SettingsPage items={items} settings={settings} onSave={saveSettings} initialGroup={route.group} />
     case 'import':
       return <ImportPage items={items} brands={brands} onChanged={reload} onSaved={async () => { await reload(); replace('/') }} />
     case 'new':

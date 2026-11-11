@@ -49,6 +49,10 @@ interface Product {
   noColor?: boolean
   /** marked with a heart: something the user likes / finds works well */
   favorite?: boolean
+  /** 踩雷: not for me (never together with favorite) */
+  bomb?: boolean
+  /** how many (backups included); 0 = used up */
+  quantity?: number | null
   notes?: string | null
   /** opened on "YYYY-MM-DD" */
   openedOn?: string | null
@@ -61,7 +65,13 @@ interface Product {
   updatedAt: string
 }
 
-interface CategoryDef { key: string; label: string; multi: boolean; defaultRows: number; defaultCols: number }
+interface CategoryDef {
+  key: string; label: string; multi: boolean; defaultRows: number; defaultCols: number
+  /** 'skincare', or missing for makeup */
+  group?: 'skincare'
+  /** new items in it start without a color card */
+  noColor?: boolean
+}
 interface AppSettings { categories: CategoryDef[]; brands: string[] }
 
 const DEFAULT_CATEGORIES: CategoryDef[] = [
@@ -198,6 +208,8 @@ function normalizeProduct(input: any, id: string, createdAt: string): Product {
     swatches,
     noColor: !!input?.noColor,
     favorite: !!input?.favorite,
+    bomb: !!input?.bomb && !input?.favorite,
+    quantity: Number.isInteger(input?.quantity) && input.quantity >= 0 && input.quantity <= 99 && input.quantity !== 1 ? input.quantity : null,
     notes: optStr(input?.notes),
     openedOn: /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(input?.openedOn) ? input.openedOn : null,
     paoMonths: Number.isInteger(input?.paoMonths) && input.paoMonths > 0 && input.paoMonths <= 120 ? input.paoMonths : null,
@@ -221,6 +233,8 @@ function normalizeSettings(input: any): AppSettings {
         key, label, multi,
         defaultRows: multi ? clamp(c?.defaultRows, 1, MAX_GRID) : 1,
         defaultCols: multi ? clamp(c?.defaultCols, 1, MAX_GRID) : 1,
+        ...(c?.group === 'skincare' && key !== 'other' ? { group: 'skincare' as const } : {}),
+        ...(c?.noColor ? { noColor: true } : {}),
       }
     })
     .filter((c: CategoryDef) => c.label && c.key !== 'all' && !seen.has(c.key.toLowerCase()) && seen.add(c.key.toLowerCase()))

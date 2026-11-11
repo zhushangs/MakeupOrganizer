@@ -1,4 +1,5 @@
-import { UNOPENED_SHELF_MONTHS, agoText, formatDate, tooOldUnopened, useBy } from '../dates'
+import { UNOPENED_SHELF_MONTHS, agoText, formatDate, todayIso, tooOldUnopened, useBy } from '../dates'
+import { Bomb } from './Bomb'
 import { useEffect, useRef, useState, type TouchEvent } from 'react'
 import { api } from '../api'
 import { renderProductCard } from '../cards'
@@ -36,21 +37,36 @@ export default function DetailSheet({ p, onClose, onDeleted, onChanged, nav }: {
   const [card, setCard] = useState<string | null>(null)
   const [making, setMaking] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // shown right away; the saved value catches up after the list reloads
-  const [fav, setFav] = useState(!!p.favorite)
-  useEffect(() => setFav(!!p.favorite), [p.id, p.favorite])
-  const toggleFav = async () => {
-    const next = !fav
-    setFav(next); setError(null)
-    try {
-      const { id: _id, createdAt: _c, updatedAt: _u, ...input } = p
-      await api.update(p.id, { ...input, favorite: next })
-      await onChanged?.()
-    } catch (e) {
-      setFav(!next)
-      setError((e as Error).message || "Couldn't save the heart")
-    }
+  // heart / bomb: shown right away; the saved value catches up after the list reloads
+  const [mark, setMark] = useState({ favorite: !!p.favorite, bomb: !!p.bomb })
+  useEffect(() => setMark({ favorite: !!p.favorite, bomb: !!p.bomb }), [p.id, p.favorite, p.bomb])
+  /** save a few fields of this item right from the details */
+  const patch = async (changes: Partial<Product>, what: string) => {
+    setError(null)
+    const { id: _id, createdAt: _c, updatedAt: _u, ...input } = p
+    await api.update(p.id, { ...input, ...changes }).catch(e => { throw new Error((e as Error).message || `Couldn't save ${what}`) })
+    await onChanged?.()
   }
+  // a heart and a bomb don't go together: setting one clears the other
+  const toggleMark = async (k: 'favorite' | 'bomb') => {
+    const before = mark
+    const next = { favorite: false, bomb: false, [k]: !mark[k] }
+    setMark(next)
+    try { await patch(next, k === 'favorite' ? 'the heart' : 'the mark') }
+    catch (e) { setMark(before); setError((e as Error).message) }
+  }
+
+  // using it up: one fewer; the next one starts unopened. The last one asks what to do.
+  const qty = p.quantity ?? 1
+  const [lastOne, setLastOne] = useState(false)
+  const [usageBusy, setUsageBusy] = useState(false)
+  const usage = async (changes: Partial<Product>) => {
+    setUsageBusy(true)
+    try { await patch(changes, 'this'); setLastOne(false) }
+    catch (e) { setError((e as Error).message) }
+    finally { setUsageBusy(false) }
+  }
+  const usedOne = () => (qty > 1 ? usage({ quantity: qty - 1, openedOn: null }) : setLastOne(true))
   const orig = formatPrice(p.originalPrice, p.currency)
   const paid = formatPrice(p.paidPrice, p.currency)
   const saved = p.originalPrice && p.paidPrice != null && p.paidPrice < p.originalPrice
@@ -78,7 +94,7 @@ export default function DetailSheet({ p, onClose, onDeleted, onChanged, nav }: {
   }
   // a different item: start fresh (no half-confirmed delete, old error) and back at the top
   useEffect(() => {
-    setConfirm(false); setError(null)
+    setConfirm(false); setError(null); setLastOne(false)
     paneRef.current?.closest('.sheet')?.scrollTo({ top: 0 })
   }, [p.id])
 
@@ -111,9 +127,13 @@ export default function DetailSheet({ p, onClose, onDeleted, onChanged, nav }: {
     <Sheet onClose={onClose}>
       <div ref={paneRef} key={p.id} className={'d-pane' + (dir ? ' ' + dir : '')}
         onAnimationEnd={() => setDir(null)} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-      <button type="button" className={'d-fav' + (fav ? ' on' : '')} onClick={toggleFav}
-        aria-pressed={fav} aria-label={fav ? 'Remove from favorites' : 'Add to favorites'}>
-        <Heart filled={fav} />
+      <button type="button" className={'d-fav' + (mark.favorite ? ' on' : '')} onClick={() => toggleMark('favorite')}
+        aria-pressed={mark.favorite} aria-label={mark.favorite ? 'Remove from favorites' : 'Add to favorites'}>
+        <Heart filled={mark.favorite} />
+      </button>
+      <button type="button" className={'d-fav d-bomb' + (mark.bomb ? ' on' : '')} onClick={() => toggleMark('bomb')}
+        aria-pressed={mark.bomb} aria-label={mark.bomb ? 'Unmark 踩雷' : 'Mark as 踩雷 (not for me)'} title="踩雷: not for me">
+        <Bomb />
       </button>
       {nav && nav.total > 1 && (
         <div className="d-nav">
@@ -126,8 +146,9 @@ export default function DetailSheet({ p, onClose, onDeleted, onChanged, nav }: {
       {p.imagePath && !p.noColor && <img className="d-photo" src={p.imagePath} alt="" />}
       <SwatchCard p={p} />
 
-      {(p.channel || orig || paid || p.notes || p.openedOn || p.batchCode || p.manufacturedOn || p.paoMonths) && (
+      {(p.channel || orig || paid || p.notes || p.openedOn || p.batchCode || p.manufacturedOn || p.paoMonths || qty !== 1) && (
         <dl className="kv">
+          {qty !== 1 && <><dt>Have</dt><dd>{qty === 0 ? <span className="sub-val">Used up</span> : <>{qty} <span className="sub-val">· {p.openedOn ? `1 open + ${qty - 1} unopened` : 'all unopened'}</span></>}</dd></>}
           {p.channel && <><dt>Bought at</dt><dd>{p.channel}</dd></>}
           {orig && <><dt>Original</dt><dd>{orig}</dd></>}
           {paid && <><dt>Paid</dt><dd>{paid}{saved ? <span className="saved"> {saved}% off</span> : null}</dd></>}
@@ -141,6 +162,28 @@ export default function DetailSheet({ p, onClose, onDeleted, onChanged, nav }: {
           {p.batchCode && <><dt>Batch</dt><dd className="mono">{p.batchCode}</dd></>}
           {p.notes && <><dt>Notes</dt><dd className="notes">{p.notes}</dd></>}
         </dl>
+      )}
+
+      {/* using it: start the next one, finish one */}
+      {qty > 0 && (
+        <div className="row usage-actions">
+          {!p.openedOn && <button className="btn" disabled={usageBusy} onClick={() => usage({ openedOn: todayIso() })}>Opened today</button>}
+          {(p.openedOn || qty > 1) && <button className="btn" disabled={usageBusy} onClick={usedOne}>Used one up</button>}
+        </div>
+      )}
+      {lastOne && (
+        <div className="last-one">
+          <div>That was the last one. Keep it in your list?</div>
+          <div className="row">
+            <button className="btn" disabled={usageBusy} onClick={() => usage({ quantity: 0, openedOn: null })}>Keep, mark used up</button>
+            <button className="btn danger" disabled={usageBusy} onClick={() => { setLastOne(false); setConfirm(true) }}>Delete it</button>
+          </div>
+          <button className="link-btn small" onClick={() => setLastOne(false)}>Cancel</button>
+        </div>
+      )}
+      {qty === 0 && (
+        <button className="btn" style={{ width: '100%', marginBottom: 10 }} disabled={usageBusy}
+          onClick={() => usage({ quantity: 1, openedOn: null })}>Bought it again</button>
       )}
 
       {!p.imagePath && (

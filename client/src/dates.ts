@@ -85,3 +85,38 @@ export function tooOldUnopened(manufacturedOn: string | null | undefined, opened
   const p = parse(manufacturedOn)
   return !!p && !parse(openedOn) && monthsBetween(p, nowParts()) >= UNOPENED_SHELF_MONTHS
 }
+
+/** Remembered list status for skincare rows: how much of its life after opening is used */
+export interface LifeStatus {
+  /** 0–1 of the time after opening used up, when known */
+  used: number | null
+  level: 'ok' | 'soon' | 'past' | 'none'
+  /** a few characters: "8 mo", "Dec", "Expired", "New", "Open", "Used up" */
+  short: string
+  /** sort key: smaller = should be used / looked at first */
+  order: number
+}
+
+export function lifeStatus(p: { openedOn?: string | null; paoMonths?: number | null; quantity?: number | null; manufacturedOn?: string | null }): LifeStatus {
+  if (p.quantity === 0) return { used: null, level: 'none', short: 'Used up', order: 1e6 }
+  const o = parse(p.openedOn)
+  if (!o) {
+    const old = tooOldUnopened(p.manufacturedOn, p.openedOn)
+    return { used: null, level: old ? 'soon' : 'none', short: old ? 'Old' : 'New', order: old ? 5e4 : 1e5 }
+  }
+  if (!p.paoMonths) return { used: null, level: 'none', short: 'Open', order: 6e4 - monthsBetween(o, nowParts()) }
+  const end: [number, number, number] = [o[0] + Math.floor((o[1] + p.paoMonths) / 12), (o[1] + p.paoMonths) % 12, o[2]]
+  const now = nowParts()
+  const left = monthsBetween(now, end)
+  // days are close enough for a progress bar
+  const t = (x: [number, number, number]) => Date.UTC(x[0], x[1], x[2])
+  const used = Math.min(1, Math.max(0, (t(now) - t(o)) / (t(end) - t(o))))
+  if (left < 0) return { used: 1, level: 'past', short: 'Expired', order: left }
+  if (left <= 1) return { used, level: 'soon', short: MONTHS[end[1]], order: left }
+  return { used, level: 'ok', short: `${left} mo`, order: left }
+}
+
+/** "20% off" chips for the price fields, with the Chinese way of saying it (八折 = 20% off) */
+export const DISCOUNTS: { off: number; zh: string }[] = [
+  { off: 10, zh: '9折' }, { off: 15, zh: '85折' }, { off: 20, zh: '8折' }, { off: 25, zh: '75折' }, { off: 30, zh: '7折' },
+]

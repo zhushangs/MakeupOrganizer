@@ -119,6 +119,8 @@ public class ProductStore
         p.Channel = OptStr(p.Channel);
         p.Currency = OptStr(p.Currency);
         p.Notes = OptStr(p.Notes);
+        if (p.Favorite) p.Bomb = false;
+        if (p.Quantity is < 0 or > 99 or 1) p.Quantity = null;
         if (p.OpenedOn is not null && !System.Text.RegularExpressions.Regex.IsMatch(p.OpenedOn, @"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$")) p.OpenedOn = null;
         if (p.PaoMonths is < 1 or > 120) p.PaoMonths = null;
         p.BatchCode = OptStr(p.BatchCode) is { } code ? code[..Math.Min(code.Length, 40)] : null;

@@ -1,14 +1,18 @@
 import { useMemo, useState } from 'react'
 import PaletteLayout from '../components/PaletteLayout'
-import { newCategoryKey, type AppSettings, type Category, type Product } from '../types'
+import { GROUPS, STARTER_SKINCARE, groupOf, newCategoryKey, type AppSettings, type Category, type Group, type Product } from '../types'
 import { go } from '../App'
 
 /** Manage categories (add / rename / reorder / remove) and the user's own brand list. */
-export default function SettingsPage({ items, settings, onSave }: {
+export default function SettingsPage({ items, settings, onSave, initialGroup }: {
   items: Product[] | null
   settings: AppSettings
   onSave: (s: AppSettings) => Promise<void>
+  /** open on the skincare categories */
+  initialGroup?: Group
 }) {
+  // the list shows one half at a time: makeup or skincare categories
+  const [group, setGroup] = useState<Group>(initialGroup ?? 'makeup')
   const [cats, setCats] = useState<Category[]>(() => settings.categories.map(c => ({ ...c })))
   const [brands, setBrands] = useState<string[]>(() => [...settings.brands])
   const [newCat, setNewCat] = useState('')
@@ -31,19 +35,36 @@ export default function SettingsPage({ items, settings, onSave }: {
   const dirty = JSON.stringify(cats) !== JSON.stringify(settings.categories) || JSON.stringify(brands) !== JSON.stringify(settings.brands)
 
   const patch = (key: string, p: Partial<Category>) => setCats(cs => cs.map(c => (c.key === key ? { ...c, ...p } : c)))
-  const move = (i: number, d: number) => setCats(cs => {
-    const j = i + d
+  const shown = cats.filter(c => groupOf(c) === group)
+  // move within this half: swap with the nearest category of the same group
+  const move = (key: string, d: number) => setCats(cs => {
+    const i = cs.findIndex(c => c.key === key)
+    let j = i + d
+    while (j >= 0 && j < cs.length && groupOf(cs[j]) !== groupOf(cs[i])) j += d
     if (j < 0 || j >= cs.length) return cs
     const next = [...cs];[next[i], next[j]] = [next[j], next[i]]
     return next
+  })
+  /** a new category for the half being shown (skincare ones start without a color card) */
+  const make = (label: string, taken: string[]): Category => ({
+    key: newCategoryKey(label, taken), label, multi: false, defaultRows: 1, defaultCols: 1,
+    group, ...(group === 'skincare' ? { noColor: true } : {}),
+  })
+  const insert = (cs: Category[], add: Category[]) => [...cs.filter(c => c.key !== 'other'), ...add, ...cs.filter(c => c.key === 'other')]
+  const addStarter = () => setCats(cs => {
+    const add: Category[] = []
+    for (const label of STARTER_SKINCARE) {
+      if (cs.some(c => c.label.toLowerCase() === label.toLowerCase()) || add.some(c => c.label === label)) continue
+      add.push(make(label, [...cs, ...add].map(c => c.key)))
+    }
+    return insert(cs, add)
   })
 
   const addCat = () => {
     const label = newCat.trim()
     if (!label) return
     if (cats.some(c => c.label.toLowerCase() === label.toLowerCase())) { setMessage({ ok: false, text: `"${label}" already exists` }); return }
-    const key = newCategoryKey(label, cats.map(c => c.key))
-    setCats(cs => [...cs.filter(c => c.key !== 'other'), { key, label, multi: false, defaultRows: 1, defaultCols: 1 }, ...cs.filter(c => c.key === 'other')])
+    setCats(cs => insert(cs, [make(label, cs.map(c => c.key))]))
     setNewCat('')
     setMessage(null)
   }
@@ -79,15 +100,30 @@ export default function SettingsPage({ items, settings, onSave }: {
       <div className="form">
         <div className="card">
           <h3>Categories<span className="opt">rename, reorder, add</span></h3>
-          {cats.map((c, i) => {
+          <div className="seg group-seg in-form">
+            {GROUPS.map(g => (
+              <button key={g.key} type="button" className={g.key === group ? 'on' : ''} onClick={() => { setGroup(g.key); setExpanded(null) }}>
+                {g.label} <span className="n">{cats.filter(c => groupOf(c) === g.key).length}</span>
+              </button>
+            ))}
+          </div>
+          {shown.length === 0 && (
+            <div className="empty-cats">
+              No {group} categories yet.
+              {group === 'skincare' && (
+                <button type="button" className="btn small primary" onClick={addStarter}>Add the usual ones: {STARTER_SKINCARE.join(', ')}</button>
+              )}
+            </div>
+          )}
+          {shown.map((c, i) => {
             const used = usage[c.key] ?? 0
             const removable = c.key !== 'other' && used === 0
             return (
               <div key={c.key} className="cat-row">
                 <div className="cat-main">
                   <div className="cat-move">
-                    <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}>▲</button>
-                    <button type="button" aria-label="Move down" disabled={i === cats.length - 1} onClick={() => move(i, 1)}>▼</button>
+                    <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => move(c.key, -1)}>▲</button>
+                    <button type="button" aria-label="Move down" disabled={i === shown.length - 1} onClick={() => move(c.key, 1)}>▼</button>
                   </div>
                   <input className="input" value={c.label} onChange={e => patch(c.key, { label: e.target.value })} aria-label="Category name" />
                   <span className="cat-count">{used || ''}</span>
@@ -103,6 +139,15 @@ export default function SettingsPage({ items, settings, onSave }: {
                         : { multi: false, defaultRows: 1, defaultCols: 1 })} />
                     Palette (several pans)
                   </label>
+                  <label className="check small">
+                    <input type="checkbox" checked={!!c.noColor} onChange={e => patch(c.key, { noColor: e.target.checked || undefined })} />
+                    No color card for new items
+                  </label>
+                  {c.key !== 'other' && (
+                    <button type="button" className="link-btn small" onClick={() => patch(c.key, { group: group === 'makeup' ? 'skincare' : 'makeup' })}>
+                      Move to {group === 'makeup' ? 'Skincare' : 'Makeup'}
+                    </button>
+                  )}
                   {c.multi && (
                     <button type="button" className="link-btn small" onClick={() => setExpanded(expanded === c.key ? null : c.key)}>
                       Default layout {c.defaultRows}×{c.defaultCols} {expanded === c.key ? '▴' : '▾'}
@@ -117,7 +162,7 @@ export default function SettingsPage({ items, settings, onSave }: {
             )
           })}
           <div className="link-row">
-            <input className="input" placeholder="New category, e.g. Mascara" value={newCat}
+            <input className="input" placeholder={group === 'skincare' ? 'New category, e.g. Essence' : 'New category, e.g. Mascara'} value={newCat}
               onChange={e => setNewCat(e.target.value)} onKeyDown={e => e.key === 'Enter' && addCat()} />
             <button type="button" className="btn" onClick={addCat} disabled={!newCat.trim()}>Add</button>
           </div>
