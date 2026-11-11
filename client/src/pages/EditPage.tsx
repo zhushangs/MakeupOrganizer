@@ -10,7 +10,7 @@ import { GROUPS, categoriesIn, categoryOf, getCategories, groupOf, newCategoryKe
 import { go } from '../App'
 import { BATCH_LOOKUP_URL, DISCOUNTS, PAO_CHOICES, todayIso } from '../dates'
 
-const CHANNELS = ['Sephora', 'Ulta', 'Nordstrom', "Macy's", "Bloomingdale's", 'Saks Fifth Avenue', 'Neiman Marcus', 'Amazon', 'Target', 'Brand website', 'Counter', 'Duty free', 'Gift']
+const CHANNELS = ['Sephora', 'Ulta', 'Nordstrom', "Macy's", "Bloomingdale's", 'Saks Fifth Avenue', 'Neiman Marcus', 'Amazon', 'Target', 'Brand website', 'Counter', 'Duty free', 'Gift', 'Influenster']
 
 function blank(category: string): ProductInput {
   const c = categoryOf(category)
