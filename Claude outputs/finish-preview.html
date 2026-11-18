@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finish Preview</title>
+<style>
+:root {
+  --bg: #f6f1ec; --surface: #fffdfb; --surface-2: #efe7e0; --ink: #2a2321; --ink-2: #6f625c; --ink-3: #a3958e;
+  --line: #e4d9d1; --accent: #a8394d;
+  --shadow: 0 1px 2px rgba(60,40,30,.06), 0 6px 20px rgba(60,40,30,.08);
+  /* fine white specks (shimmer) and bigger specks (glitter), drawn from SVG noise */
+  --specks-fine: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 14 -9.1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --specks-big: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.45' seed='9'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .95 0 0 0 0 .8 0 0 0 22 -15.4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --specks-big2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='130' height='130'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.5' seed='21'/%3E%3CfeColorMatrix values='0 0 0 0 .85 0 0 0 0 .9 0 0 0 0 1 0 0 0 22 -15.8'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", Roboto, sans-serif; }
+main { max-width: 430px; margin: 0 auto; padding: 18px 16px 40px; }
+h1 { font-size: 26px; margin: 4px 0 2px; letter-spacing: -.01em; }
+.sub { color: var(--ink-3); font-size: 13px; margin: 0 0 18px; }
+h2 { font-size: 13px; color: var(--ink-2); font-weight: 600; letter-spacing: .05em; text-transform: uppercase; margin: 22px 0 10px; }
+
+/* ---- finishes: layers on top of the base color ---- */
+.fin { position: relative; overflow: hidden; }
+.fin::before, .fin::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
+.satin::before { background:
+    linear-gradient(180deg, rgba(0,0,0,.18) 0%, rgba(255,255,255,.55) 4%, rgba(255,255,255,.25) 9%, rgba(0,0,0,.20) 16%, rgba(255,255,255,.12) 30%, transparent 45%, transparent 70%, rgba(0,0,0,.25) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.003 .035' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .7 -.22'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 100% 100%, 300px 300px;
+  mix-blend-mode: soft-light; }
+.satin::after { background:
+    radial-gradient(ellipse 120% 9% at 45% 0%, transparent 50%, rgba(255,255,255,.55) 70%, rgba(255,255,255,.15) 85%, transparent 100%),
+    linear-gradient(180deg, transparent 22%, rgba(255,255,255,.10) 30%, transparent 45%);
+  -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.35), #000 25%, #000 65%, rgba(0,0,0,.25));
+          mask-image: linear-gradient(90deg, rgba(0,0,0,.35), #000 25%, #000 65%, rgba(0,0,0,.25));
+  filter: blur(1.2px); }
+.shimmer::after { background: var(--specks-fine); background-size: 110px; opacity: .9; mix-blend-mode: screen; }
+.metallic::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.25' numOctaves='2' seed='11'/%3E%3CfeColorMatrix values='.33 .33 .33 0 0 .33 .33 .33 0 0 .33 .33 .33 0 0 0 0 0 0 1'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='2.8' intercept='-1.0'/%3E%3CfeFuncG type='linear' slope='2.8' intercept='-1.0'/%3E%3CfeFuncB type='linear' slope='2.8' intercept='-1.0'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size: 160px; mix-blend-mode: overlay; opacity: .75; }
+.metallic::after { background: var(--specks-fine), radial-gradient(ellipse 80% 70% at 45% 35%, rgba(255,255,255,.10), transparent 70%); background-size: 120px, 100% 100%; mix-blend-mode: screen; opacity: .6; box-shadow: inset 0 0 18px rgba(0,0,0,.18); }
+.glitter::before { background: var(--specks-big), var(--specks-big2); background-size: 160px, 130px; mix-blend-mode: screen; }
+.glitter::after { background: var(--specks-fine); background-size: 140px; opacity: .6; mix-blend-mode: screen; }
+
+/* ---- finish comparison ---- */
+.compare { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.compare .sw { aspect-ratio: 1; border-radius: 10px; }
+.compare .lb { text-align: center; font-size: 11px; color: var(--ink-2); margin-top: 5px; }
+.compare + .compare { margin-top: 10px; }
+
+/* ---- home cards (same look as the app) ---- */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ic { background: var(--surface); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+.ic-img { aspect-ratio: 1; display: grid; }
+.ic-img.pal { gap: 2px; background: var(--surface-2); }
+.ic-text { padding: 9px 11px 11px; }
+.ic-brand { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .07em; }
+.ic-shade { font-size: 15px; font-weight: 650; margin-top: 2px; }
+.ic-name { font-size: 13px; color: var(--ink-2); }
+
+/* ---- list view ---- */
+.list { background: var(--surface); border-radius: 14px; box-shadow: var(--shadow); }
+.row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.dot { width: 40px; height: 40px; border-radius: 10px; flex: none; }
+.row b { font-size: 14px; display: block; }
+.row span { font-size: 12px; color: var(--ink-3); }
+
+/* ---- picker mock ---- */
+.card { background: var(--surface); border-radius: 14px; box-shadow: var(--shadow); padding: 14px; }
+.pick { display: flex; gap: 12px; align-items: center; }
+.pick .big { width: 74px; height: 74px; border-radius: 12px; flex: none; }
+.hexin { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 8px 10px; font: 15px ui-monospace, Menlo, monospace; color: var(--ink); }
+.seg { display: flex; background: var(--surface-2); border-radius: 10px; padding: 3px; margin-top: 12px; }
+.seg button { flex: 1; border: 0; background: none; padding: 7px 0; border-radius: 8px; font-size: 13px; color: var(--ink-2); font-family: inherit; }
+.seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.1); font-weight: 600; }
+.note { font-size: 12.5px; color: var(--ink-3); margin-top: 10px; line-height: 1.45; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Finish preview</h1>
+  <p class="sub">Mock-up only — nothing in the app has changed yet.</p>
+
+  <h2>Same color, five finishes</h2>
+  <div class="compare" id="cmp1"></div>
+  <div class="compare" id="cmp2"></div>
+  <div class="compare" id="cmp3"></div>
+
+  <h2>Home cards</h2>
+  <div class="grid">
+    <div class="ic">
+      <div class="ic-img pal" style="grid-template-columns:1fr 1fr">
+        <div class="fin matte" style="background:#d8b4a0"></div>
+        <div class="fin shimmer" style="background:#c98f7a"></div>
+        <div class="fin metallic" style="background:#a86a52"></div>
+        <div class="fin matte" style="background:#6d4537"></div>
+      </div>
+      <div class="ic-text"><div class="ic-brand">Tom Ford</div><div class="ic-shade">Golden Mink</div><div class="ic-name">Eye Color Quad</div></div>
+    </div>
+    <div class="ic">
+      <div class="ic-img"><div class="fin satin" style="background:#b0243a"></div></div>
+      <div class="ic-text"><div class="ic-brand">MAC</div><div class="ic-shade">Ruby Woo</div><div class="ic-name">Lipstick · Satin</div></div>
+    </div>
+    <div class="ic">
+      <div class="ic-img"><div class="fin shimmer" style="background:#e9a59a"></div></div>
+      <div class="ic-text"><div class="ic-brand">NARS</div><div class="ic-shade">Orgasm</div><div class="ic-name">Blush · Shimmer</div></div>
+    </div>
+    <div class="ic">
+      <div class="ic-img"><div class="fin glitter" style="background:#8a5a6e"></div></div>
+      <div class="ic-text"><div class="ic-brand">Natasha Denona</div><div class="ic-shade">Mia</div><div class="ic-name">Cream Eyeshadow · Glitter</div></div>
+    </div>
+    <div class="ic" style="grid-column: span 2">
+      <div class="ic-img pal" style="grid-template-columns:repeat(6,1fr); aspect-ratio: 3">
+        <div class="fin matte" style="background:#efd9c6"></div>
+        <div class="fin shimmer" style="background:#e7c2a5"></div>
+        <div class="fin matte" style="background:#c48b6c"></div>
+        <div class="fin metallic" style="background:#b98a4a"></div>
+        <div class="fin glitter" style="background:#9a5b4a"></div>
+        <div class="fin matte" style="background:#5b3a30"></div>
+        <div class="fin satin" style="background:#e3b7b0"></div>
+        <div class="fin matte" style="background:#c9877c"></div>
+        <div class="fin shimmer" style="background:#b06a63"></div>
+        <div class="fin matte" style="background:#8b4c48"></div>
+        <div class="fin metallic" style="background:#7d5a3c"></div>
+        <div class="fin matte" style="background:#3c2723"></div>
+      </div>
+      <div class="ic-text"><div class="ic-brand">Natasha Denona</div><div class="ic-shade">I Need a Nude</div><div class="ic-name">Eyeshadow Palette · mixed finishes</div></div>
+    </div>
+  </div>
+
+  <h2>List view</h2>
+  <div class="list">
+    <div class="row"><div class="dot fin metallic" style="background:#b98a4a"></div><div><b>Charlotte Tilbury · Pillow Talk</b><span>Eyeshadow Palette</span></div></div>
+    <div class="row"><div class="dot fin shimmer" style="background:#e9a59a"></div><div><b>NARS · Orgasm</b><span>Blush</span></div></div>
+    <div class="row"><div class="dot fin matte" style="background:#b0243a"></div><div><b>MAC · Ruby Woo</b><span>Lipstick</span></div></div>
+  </div>
+
+  <h2>Picking the color (one pan)</h2>
+  <div class="card">
+    <div class="pick">
+      <div class="big fin shimmer" style="background:#c98f7a"></div>
+      <div>
+        <div style="font-size:13px;color:var(--ink-2);margin-bottom:6px">Pan 2 of 4</div>
+        <div class="hexin">#c98f7a</div>
+      </div>
+    </div>
+    <div class="seg">
+      <button>Matte</button><button>Satin</button><button class="on">Shimmer</button><button>Metallic</button><button>Glitter</button>
+    </div>
+    <div class="note">A new row under the color picker. Default is Matte, so everything you already saved stays as it is.</div>
+  </div>
+</main>
+<script>
+  const F = ['matte', 'satin', 'shimmer', 'metallic', 'glitter']
+  const L = ['Matte', 'Satin', 'Shimmer', 'Metallic', 'Glitter']
+  const fill = (id, hex) => {
+    document.getElementById(id).innerHTML = F.map((f, i) =>
+      `<div><div class="sw fin ${f}" style="background:${hex}"></div><div class="lb">${L[i]}</div></div>`).join('')
+  }
+  fill('cmp1', '#c98f7a'); fill('cmp2', '#7b3b55'); fill('cmp3', '#b98a4a')
+</script>
+</body>
+</html>
