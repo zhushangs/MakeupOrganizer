@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { renderChart } from '../cards'
-import { hueSortKey } from '../color'
+import { colorSortKey } from '../color'
 import { categoriesIn, categoryOf, itemGroup, type Product } from '../types'
 import { go } from '../App'
 
@@ -10,7 +10,7 @@ export default function ChartPage({ items, category, favOnly = false }: { items:
   // "Favorite blush": only items with a heart (when the home page's heart filter is on)
   const cat = favOnly ? { key: base.key, label: base.key === 'all' ? 'Favorites' : `Favorite ${base.label.toLowerCase()}` } : base
   const byColor = (a: Product, b: Product) =>
-    (a.noColor ? 1 : 0) - (b.noColor ? 1 : 0) || hueSortKey(a.swatches[0]?.hex) - hueSortKey(b.swatches[0]?.hex)
+    (a.noColor ? 1 : 0) - (b.noColor ? 1 : 0) || colorSortKey(a.swatches.map(s => s.hex)) - colorSortKey(b.swatches.map(s => s.hex))
 
   // "All": one section per category (in your category order), each sorted by color
   const sections = useMemo(() => {

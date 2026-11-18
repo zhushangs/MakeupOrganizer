@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type TouchEvent } from 'react'
 import { GROUPS, categoriesIn, categoryOf, itemGroup, type Group, type Product } from '../types'
 import { lifeStatus } from '../dates'
 import { Bomb } from '../components/Bomb'
-import { hueSortKey } from '../color'
+import { colorSortKey } from '../color'
 import PaletteGrid from '../components/PaletteGrid'
 import { isMulti } from '../layout'
 import DetailSheet, { formatPrice, Heart } from '../components/DetailSheet'
@@ -98,7 +98,7 @@ export default function ListPage({ items: allItems, error, category, group: grou
     const sorted = [...list]
     // skincare: what needs using first (expired, then running out soonest), unopened and used-up last
     if (sort === 'use') sorted.sort((a, b) => lifeStatus(a).order - lifeStatus(b).order || a.brand.localeCompare(b.brand))
-    if (sort === 'hue') sorted.sort((a, b) => (a.noColor ? 1 : 0) - (b.noColor ? 1 : 0) || hueSortKey(a.swatches[0]?.hex) - hueSortKey(b.swatches[0]?.hex))
+    if (sort === 'hue') sorted.sort((a, b) => (a.noColor ? 1 : 0) - (b.noColor ? 1 : 0) || colorSortKey(a.swatches.map(s => s.hex)) - colorSortKey(b.swatches.map(s => s.hex)))
     if (sort === 'brand') sorted.sort((a, b) => a.brand.localeCompare(b.brand) || (a.shadeName ?? '').localeCompare(b.shadeName ?? ''))
     // 'new': the backend already returns newest first
     return sorted

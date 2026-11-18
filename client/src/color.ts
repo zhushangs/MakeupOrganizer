@@ -21,13 +21,75 @@ export function rgbToHsl([r, g, b]: RGB): [number, number, number] {
   return [h * 60, s, l]
 }
 
-/** Hue sort key: pink → red → orange → brown → …, grays/black/white last */
-export function hueSortKey(hex?: string | null): number {
-  const rgb = hex ? hexToRgb(hex) : null
-  if (!rgb) return 99999
-  const [h, s, l] = rgbToHsl(rgb)
-  if (s < 0.1) return 10000 + (1 - l) * 100
-  return ((h + 40) % 360) * 10 + (1 - l)
+/** sRGB hex → CIE Lab (D65): distances and lightness the way eyes see them, unlike HSL */
+export function hexToLab(hex: string): [number, number, number] | null {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return null
+  const [r, g, b] = rgb.map(v => {
+    v /= 255
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+  })
+  const x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047
+  const y = 0.2126 * r + 0.7152 * g + 0.0722 * b
+  const z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883
+  const f = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116)
+  const fx = f(x), fy = f(y), fz = f(z)
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)]
+}
+
+/**
+ * Color families in the order "By color" shows them; inside a family, light to dark.
+ * Decided in LCh (Lab as lightness, chroma = colorfulness, hue angle), so a muted nude and a dark
+ * brown, or a pale pink and a deep berry, land where they look like they belong.
+ */
+export const COLOR_FAMILIES = ['Nude', 'Pink', 'Coral', 'Red', 'Berry', 'Purple', 'Brown', 'Gold', 'Green', 'Blue', 'Neutral'] as const
+export type ColorFamily = (typeof COLOR_FAMILIES)[number]
+
+export function colorFamily(lab: [number, number, number]): ColorFamily {
+  const [L, a, b] = lab
+  const C = Math.hypot(a, b)
+  const h = (Math.atan2(b, a) * 180 / Math.PI + 360) % 360
+  if (C < 9) return 'Neutral'
+  if (h >= 345 || h < 22) {
+    // pinks, roses, reds leaning blue, berries
+    if (L < 42) return 'Berry'
+    if (C < 30 && L >= 55) return 'Nude'
+    // only the orange-leaning end of this range reads as red; the rest are (hot) pinks
+    return h >= 15 && h < 22 && C >= 50 && L < 55 ? 'Red' : 'Pink'
+  }
+  if (h < 45) {
+    // red-orange: true reds, corals, rosy nudes and browns
+    if (C >= 50) return L < 55 ? 'Red' : 'Coral'
+    if (L >= 62) return C >= 35 ? 'Coral' : 'Nude'
+    return 'Brown'
+  }
+  if (h < 75) {
+    // orange to tan: corals, peachy nudes, browns
+    if (C >= 50 && L >= 50) return 'Coral'
+    return L >= 62 ? 'Nude' : 'Brown'
+  }
+  if (h < 105) return C >= 35 && L >= 45 ? 'Gold' : L >= 62 ? 'Nude' : 'Brown'
+  if (h < 200) return 'Green'
+  if (h < 285) return 'Blue'
+  // violet → magenta: lavender, mauve, purple; deep reddish ones are berries
+  return h >= 320 && L < 35 ? 'Berry' : 'Purple'
+}
+
+/** The color a product reads as: the average (in Lab) of all its colors, so a palette isn't just its first pan */
+export function representativeLab(hexes: (string | null | undefined)[]): [number, number, number] | null {
+  const labs = hexes.map(h => (h ? hexToLab(h) : null)).filter((x): x is [number, number, number] => !!x)
+  if (!labs.length) return null
+  const n = labs.length
+  return [labs.reduce((s, x) => s + x[0], 0) / n, labs.reduce((s, x) => s + x[1], 0) / n, labs.reduce((s, x) => s + x[2], 0) / n]
+}
+
+/** Sort key for "By color": family first, then light → dark, then hue; items without a color last */
+export function colorSortKey(hexes: (string | null | undefined)[]): number {
+  const lab = representativeLab(hexes)
+  if (!lab) return 1e9
+  const fam = COLOR_FAMILIES.indexOf(colorFamily(lab))
+  const h = (Math.atan2(lab[2], lab[1]) * 180 / Math.PI + 360) % 360
+  return fam * 1e6 + Math.round((100 - lab[0]) * 100) * 10 + Math.floor(h / 36)
 }
 
 /** Whether to use light text on this background color */
