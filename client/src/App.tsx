@@ -9,6 +9,7 @@ import ImagePage from './pages/ImagePage'
 import ChartPage from './pages/ChartPage'
 import ImportPage from './pages/ImportPage'
 import SettingsPage from './pages/SettingsPage'
+import MatchPage from './pages/MatchPage'
 
 /** Hash-based routing so the phone's back gesture works */
 type Route =
@@ -18,6 +19,7 @@ type Route =
   | { name: 'image'; id: string; isNew: boolean }
   | { name: 'chart'; category: string; favOnly: boolean }
   | { name: 'import' }
+  | { name: 'match' }
   | { name: 'settings'; group?: Group }
 
 function parseHash(): Route {
@@ -29,6 +31,7 @@ function parseHash(): Route {
   if (parts[0] === 'edit' && parts[1]) return { name: 'edit', id: parts[1] }
   if (parts[0] === 'image' && parts[1]) return { name: 'image', id: parts[1], isNew: q.get('new') === '1' }
   if (parts[0] === 'import') return { name: 'import' }
+  if (parts[0] === 'match') return { name: 'match' }
   if (parts[0] === 'settings') return { name: 'settings', group: q.get('g') === 'skincare' ? 'skincare' : undefined }
   if (parts[0] === 'chart') return { name: 'chart', category: q.get('c') ?? 'all', favOnly: q.get('fav') === '1' }
   return { name: 'list', category: q.get('c') ?? undefined, group: q.get('g') === 'skincare' ? 'skincare' : q.get('g') === 'makeup' ? 'makeup' : undefined, open: q.get('open') ?? undefined }
@@ -92,6 +95,8 @@ export default function App() {
       return <ChartPage items={items} category={route.category} favOnly={route.favOnly} />
     case 'settings':
       return <SettingsPage items={items} settings={settings} onSave={saveSettings} initialGroup={route.group} />
+    case 'match':
+      return <MatchPage items={items} onChanged={reload} />
     case 'import':
       return <ImportPage items={items} brands={brands} onChanged={reload} onSaved={async () => { await reload(); replace('/') }} />
     case 'new':

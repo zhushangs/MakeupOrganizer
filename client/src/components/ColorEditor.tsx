@@ -20,6 +20,9 @@ export default function ColorEditor({ value, onChange, images, hint, finish }: P
   useEffect(() => setText(value ?? ''), [value])
 
   useEffect(() => { if (!images.length && mode === 'dropper') setMode('picker') }, [images.length, mode])
+  // a picture just arrived (e.g. a photo added in Find by color): go straight to the eyedropper
+  const firstSrc = images[0]?.src
+  useEffect(() => { if (firstSrc) setMode('dropper') }, [firstSrc])
 
   return (
     <div className="picker-wrap">

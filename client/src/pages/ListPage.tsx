@@ -196,6 +196,14 @@ export default function ListPage({ items: allItems, error, category, group: grou
             aria-pressed={filter === 'bomb'} aria-label="Only items that weren't for me" title="Only 踩雷 items (not for me)">
             <Bomb size={18} />
           </button>
+          {!skin && (
+            <button type="button" className="fav-filter" onClick={() => go('/match')} aria-label="Find by color" title="Find similar colors from a photo">
+              <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14.5 4.5l5 5" /><path d="M16.8 2.2a2.1 2.1 0 013 3l-2.3 2.3-3-3z" /><path d="M14.5 6.5L5 16v3h3l9.5-9.5" />
+                <circle cx="5.5" cy="19.5" r="1" fill="currentColor" />
+              </svg>
+            </button>
+          )}
           <select className="select" value={sort} onChange={e => setSort(e.target.value as Sort)}>
             {skin ? <option value="use">Use-by</option> : <option value="hue">By color</option>}
             <option value="new">Newest</option>
