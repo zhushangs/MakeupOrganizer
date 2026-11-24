@@ -131,6 +131,16 @@ npm run deploy
 
 `deploy` builds the frontend (into `server/MakeupOrganizer.Api/wwwroot`) and deploys the Worker. Plain `npx wrangler deploy` uploads whatever was built last, so frontend changes only go live after a build. Database tables are created by `npm run setup`; the sign-in lockout table is also created by the Worker itself, so deploying never needs `npm run migrate-db`.
 
+#### Not having to sign in again (API token)
+
+`deploy.bat` checks the Cloudflare sign-in first and opens the login page only when it has expired (and once more if a deploy fails because of it). The browser sign-in can't pick your account for you, so to skip it for good, use an API token instead:
+
+1. Cloudflare dashboard → your profile (top right) → **API Tokens** → **Create Token** → **Edit Cloudflare Workers** template.
+2. Under **Permissions** add **Account → D1 → Edit** (for backups and data scripts), and under **Account Resources** choose your account. Create the token and copy it.
+3. Save it as one line in `worker/.cloudflare-token` (git-ignored). If you have more than one Cloudflare account, also put your account id (Workers & Pages overview, right side) in `worker/.cloudflare-account`.
+
+From then on `deploy.bat` uses the token and never opens a login page. To use it in a terminal too, set `CLOUDFLARE_API_TOKEN` (and `CLOUDFLARE_ACCOUNT_ID`).
+
 ### Your config file: wrangler.toml
 
 `worker/wrangler.toml` holds your own Cloudflare database id, so it is git-ignored; the committed template is `worker/wrangler.example.toml`. `npm run setup` creates `wrangler.toml` from the template for you. If you skip setup (for example to only run it locally), copy it yourself:

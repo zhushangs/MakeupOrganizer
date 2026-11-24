@@ -131,6 +131,16 @@ npm run deploy
 
 `deploy` 会先打包前端（输出到 `server/MakeupOrganizer.Api/wwwroot`），再部署 Worker。直接运行 `npx wrangler deploy` 只会上传上次打包的结果，所以前端改动要打包后才会生效。数据库表由 `npm run setup` 创建；登录锁定用的表 Worker 也会自己创建，所以部署时不需要运行 `npm run migrate-db`。
 
+#### 不用再重新登录（API token）
+
+`deploy.bat` 会先检查 Cloudflare 的登录状态，只有过期时才打开登录页面（如果部署途中因为登录失败，也会再登录一次后重试）。浏览器登录没办法自动帮你选账户，想彻底不用登录，可以改用 API token：
+
+1. Cloudflare 控制台 → 右上角头像 → **API Tokens** → **Create Token** → 选 **Edit Cloudflare Workers** 模板。
+2. 在 **Permissions** 里再加一行 **Account → D1 → Edit**（备份和数据脚本要用），**Account Resources** 选你的账户。创建后复制 token。
+3. 把 token 存成一行，放在 `worker/.cloudflare-token`（不进 git）。如果你有不止一个 Cloudflare 账户，再把账户 ID（Workers & Pages 概览页右侧）放进 `worker/.cloudflare-account`。
+
+之后 `deploy.bat` 就用这个 token，不会再打开登录页。想在终端里也用，设置环境变量 `CLOUDFLARE_API_TOKEN`（和 `CLOUDFLARE_ACCOUNT_ID`）。
+
 ### 你的配置文件：wrangler.toml
 
 `worker/wrangler.toml` 里有你自己的 Cloudflare 数据库 ID，所以不进 git；提交到仓库的是模板 `worker/wrangler.example.toml`。`npm run setup` 会自动用模板生成 `wrangler.toml`。如果不跑 setup（比如只想在本地运行），就自己复制一份：

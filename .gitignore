@@ -8,6 +8,9 @@ server/MakeupOrganizer.Api/appsettings.Local.json
 client/public/ocr/
 worker/.wrangler/
 worker/.dev.vars
+# Cloudflare API token / account id for deploy.bat (secrets)
+worker/.cloudflare-token
+worker/.cloudflare-account
 # your own Cloudflare config (copied from worker/wrangler.example.toml)
 worker/wrangler.toml
 *.tsbuildinfo
